@@ -79,8 +79,9 @@ Per-process run commands (this supersedes any earlier generated guidance suggest
 under plain Node):
 
 - **Next.js:** `bun run dev` (script wraps `next dev`).
-- **Bolt:** `bun lib/slack/bolt.ts`, with fallback `bunx tsx lib/slack/bolt.ts` if bun's Socket
-  Mode WebSocket handling misbehaves.
+- **Bolt:** `bunx tsx lib/slack/bolt.ts` (Phase 2 Task 1 smoke test: bun's Socket Mode
+  WebSocket ping handling misbehaved — `undici_1.ping is not a function` — so tsx is the
+  winning runtime, not the fallback).
 - **Prisma:** `bunx prisma …` (e.g. `bunx prisma db push`, `bunx prisma generate`).
 - **Package manager:** bun only — never npm, npx, yarn, or pnpm.
 - Never pass `--bun` to any of the above commands.

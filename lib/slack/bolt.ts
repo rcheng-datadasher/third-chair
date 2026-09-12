@@ -3,6 +3,7 @@ import type { SlackMessage } from "../../types/slack";
 import { dispatchAgentRun } from "../agent/dispatch";
 import { config } from "../config";
 import { handleApproveProposal } from "./actions/approve-proposal";
+import { handleWatchedChannelMessage } from "./handlers/watched-channel-message";
 
 /**
  * The Bolt process entry point. Registration only — every handler body
@@ -29,6 +30,7 @@ app.event("app_mention", async ({ event }) => {
 });
 
 app.action("approve_proposal", handleApproveProposal);
+app.message(handleWatchedChannelMessage);
 
 (async () => {
   await app.start();
