@@ -1,0 +1,133 @@
+generator client {
+  provider = "prisma-client"
+  output   = "./generated"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// A Slack team's installed instance of the app.
+model Installation {
+  team_id       String   @id
+  enterprise_id String?
+  payload       Json
+  installed_by  String
+  created_at    DateTime @default(now())
+}
+
+/// A person known to the app, keyed by their Slack identity within a team.
+model User {
+  id                    String   @id @default(cuid())
+  team_id               String
+  slack_user_id         String
+  email                 String
+  google_refresh_token  String?
+  tz                    String
+
+  action_items ActionItem[]
+  participants Participant[]
+  preferences  Preference[]
+
+  @@unique([team_id, slack_user_id])
+}
+
+enum ProposalStatus {
+  pending
+  confirmed
+  dismissed
+  already_scheduled
+}
+
+/// A proposed meeting/event, from first Slack mention through calendar confirmation.
+model Proposal {
+  id                 String         @id @default(cuid())
+  team_id            String
+  dedupe_key         String         @unique
+  title              String
+  start              DateTime
+  end                DateTime
+  tz                 String
+  status             ProposalStatus @default(pending)
+  organizer_user_id  String?
+  calendar_event_id  String?
+  source_channel     String
+  source_ts          String
+  confidence         Float
+  card_channel       String?
+  card_ts            String?
+  calendar_html_link String?
+  meet_link          String?
+  alternatives       Json?
+  created_at         DateTime       @default(now())
+
+  participants Participant[]
+  action_items ActionItem[]
+  decisions    Decision[]
+}
+
+/// A person invited to / involved in a Proposal.
+model Participant {
+  id            String  @id @default(cuid())
+  proposal_id   String
+  user_id       String?
+  slack_user_id String?
+  email         String
+  role          String
+  response      String?
+
+  proposal Proposal @relation(fields: [proposal_id], references: [id])
+  user     User?    @relation(fields: [user_id], references: [id])
+
+  @@unique([proposal_id, email])
+}
+
+/// A follow-up task tied to a Proposal and a User (e.g. a reminder or nudge).
+model ActionItem {
+  id            String    @id @default(cuid())
+  proposal_id   String
+  user_id       String
+  kind          String
+  state         String
+  slack_channel String
+  slack_ts      String
+  expires_at    DateTime?
+
+  proposal Proposal @relation(fields: [proposal_id], references: [id])
+  user     User     @relation(fields: [user_id], references: [id])
+
+  @@unique([proposal_id, user_id])
+}
+
+enum DecisionVerdict {
+  acted
+  ignored
+}
+
+/// A logged agent decision about whether a Slack message needed action.
+model Decision {
+  id             String          @id @default(cuid())
+  team_id        String
+  source_ts      String
+  verdict        DecisionVerdict
+  confidence     Float
+  reason         String
+  source_channel String
+  message_text   String
+  proposal_id    String?
+
+  proposal Proposal? @relation(fields: [proposal_id], references: [id])
+}
+
+/// A learned or stated user preference (e.g. preferred meeting hours).
+model Preference {
+  id      String @id @default(cuid())
+  user_id String
+  key     String
+  value   String
+  source  String
+
+  user User @relation(fields: [user_id], references: [id])
+
+  @@unique([user_id, key])
+}
