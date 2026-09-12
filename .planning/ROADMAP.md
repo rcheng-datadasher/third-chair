@@ -328,13 +328,17 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
   4. Re-running the insert with the same proposal id does not create a second event
 
 **Plans**: 2 (suggested)
+
+- [x] 03-01-PLAN.md
+- [x] 03-02-PLAN.md
+
 **Wave 1**
 
-- [ ] 03-01: googleapis smoke test + freebusy.query with HKT offsets
+- [x] 03-01: googleapis smoke test + freebusy.query with HKT offsets
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 03-02: events.insert (Meet link, deterministic id, 409 fallback, demo tag) + invite
+- [x] 03-02: events.insert (Meet link, deterministic id, 409 fallback, demo tag) + invite
 
 ### Phase 4: Approval Bridge
 
@@ -401,17 +405,22 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
   4. Switching `MODEL_FAST`/`MODEL_SMART` in `.env` and restarting changes which model handles a call, with no code edit
 
 **Plans**: 3 (suggested)
+
+- [x] 05-01-PLAN.md
+- [x] 05-02-PLAN.md
+- [x] 05-03-PLAN.md
+
 **Wave 1**
 
-- [ ] 05-01: Graph skeleton (5 nodes, no checkpointer) + provider.ts real calls + rubric-verified prompt
+- [x] 05-01: Graph skeleton (5 nodes, no checkpointer) + provider.ts real calls + rubric-verified prompt
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 05-02: extractIntents array signature + Zod schema + deterministic date resolution
+- [x] 05-02: extractIntents array signature + Zod schema + deterministic date resolution
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 05-03: Confidence branches (high/medium/low) + Decision writes + dedupe_key
+- [x] 05-03: Confidence branches (high/medium/low) + Decision writes + dedupe_key
 
 ### Phase 6: Dashboard
 
@@ -638,9 +647,9 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
 |-------|----------------|--------|-----------|
 | 1. Foundation + Hardcoded Round Trip | 1/3 | In Progress|  |
 | 2. Slack Surface | 2/2 | In Progress|  |
-| 3. Calendar Client | 0/2 | Not started | - |
+| 3. Calendar Client | 2/2 | In Progress|  |
 | 4. Approval Bridge | 1/2 | In Progress|  |
-| 5. Agent + Confidence Gate | 0/3 | Not started | - |
+| 5. Agent + Confidence Gate | 3/3 | In Progress|  |
 | 6. Dashboard | 0/3 | Not started | - |
 | 7. Integrate + Conflict Counter-Proposal | 0/3 | Not started | - |
 | 8. [optional] S2 Commitment Ledger | 2/2 | In Progress|  |

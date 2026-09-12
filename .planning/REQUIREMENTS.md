@@ -33,11 +33,11 @@ Every requirement's check is a hand check that takes under a minute. No requirem
 
 ### Calendar (CAL)
 
-- [ ] **CAL-01**: `freebusy.query` returns A's busy blocks for a given HKT window, with explicit `+08:00` offsets
-- [ ] **CAL-02**: `events.insert` creates an event on A's calendar with a Meet link (`conferenceDataVersion=1` + `createRequest.requestId`) visible when the event is opened
-- [ ] **CAL-03**: The event invites B by email with `sendUpdates: 'all'`, and B's inbox receives the invite
-- [ ] **CAL-04**: The event id is derived deterministically from the proposal id in the base32hex charset; a repeat insert hits 409, falls back to `events.get`, and is treated as success
-- [ ] **CAL-05**: Demo-created events are tagged (`extendedProperties.private.demo=true`) so they can be cleaned up
+- [x] **CAL-01**: `freebusy.query` returns A's busy blocks for a given HKT window, with explicit `+08:00` offsets
+- [x] **CAL-02**: `events.insert` creates an event on A's calendar with a Meet link (`conferenceDataVersion=1` + `createRequest.requestId`) visible when the event is opened
+- [x] **CAL-03**: The event invites B by email with `sendUpdates: 'all'`, and B's inbox receives the invite
+- [x] **CAL-04**: The event id is derived deterministically from the proposal id in the base32hex charset; a repeat insert hits 409, falls back to `events.get`, and is treated as success
+- [x] **CAL-05**: Demo-created events are tagged (`extendedProperties.private.demo=true`) so they can be cleaned up
 
 ### Approval gate (APR)
 
@@ -49,16 +49,16 @@ Every requirement's check is a hand check that takes under a minute. No requirem
 
 ### Agent and confidence gate (AGT)
 
-- [ ] **AGT-01**: Every model call goes through `lib/ai/provider.ts`, which reads `AI_BASE_URL`, `AI_API_KEY`, `MODEL_FAST`, `MODEL_SMART` from config; switching provider or model is an env change only
-- [ ] **AGT-02**: `extractIntents(messages: SlackMessage[], ctx)` renders numbered lines and returns Zod-validated intents (title, resolved ISO start, duration, participants, `is_actionable`, `confidence`, `message_index`) that map back to real Slack `ts`; the same Zod schema backs the DB write
-- [ ] **AGT-03**: Relative times ("next Friday at 11am") resolve correctly against the current date in `Asia/Hong_Kong`, with the date and day-of-week passed explicitly and the arithmetic done in code
-- [ ] **AGT-04**: A high-confidence intent posts the approval card
-- [ ] **AGT-05**: A medium-confidence intent posts a card whose action opens an edit modal (prefilled from `private_metadata`); submitting the modal updates the Proposal and shows the approvable card
-- [ ] **AGT-06**: A low-confidence or non-actionable message posts nothing and writes a `Decision` row (verdict `ignored`, confidence, reason)
-- [ ] **AGT-07**: Actionable messages also write a `Decision` row (verdict `acted`)
-- [ ] **AGT-08**: The extraction prompt carries a confidence rubric so sample messages visibly spread across high / medium / low
-- [ ] **AGT-09**: One Proposal per intent: `dedupe_key = sha256(team_id + channel_id + (thread_ts ?? message_ts) + normalized_intent)` (type + ISO start in 5-minute buckets + sorted participants); per-user `ActionItem` rows reference it
-- [ ] **AGT-10**: The agent is one LangGraph graph of at most five nodes (extract → classify → resolve time → check conflicts → propose), compiled with no checkpointer and invoked to completion per message. If the graph is still fighting back at the fixed decision time, it is replaced by the same node functions called in sequence
+- [x] **AGT-01**: Every model call goes through `lib/ai/provider.ts`, which reads `AI_BASE_URL`, `AI_API_KEY`, `MODEL_FAST`, `MODEL_SMART` from config; switching provider or model is an env change only
+- [x] **AGT-02**: `extractIntents(messages: SlackMessage[], ctx)` renders numbered lines and returns Zod-validated intents (title, resolved ISO start, duration, participants, `is_actionable`, `confidence`, `message_index`) that map back to real Slack `ts`; the same Zod schema backs the DB write
+- [x] **AGT-03**: Relative times ("next Friday at 11am") resolve correctly against the current date in `Asia/Hong_Kong`, with the date and day-of-week passed explicitly and the arithmetic done in code
+- [x] **AGT-04**: A high-confidence intent posts the approval card
+- [x] **AGT-05**: A medium-confidence intent posts a card whose action opens an edit modal (prefilled from `private_metadata`); submitting the modal updates the Proposal and shows the approvable card
+- [x] **AGT-06**: A low-confidence or non-actionable message posts nothing and writes a `Decision` row (verdict `ignored`, confidence, reason)
+- [x] **AGT-07**: Actionable messages also write a `Decision` row (verdict `acted`)
+- [x] **AGT-08**: The extraction prompt carries a confidence rubric so sample messages visibly spread across high / medium / low
+- [x] **AGT-09**: One Proposal per intent: `dedupe_key = sha256(team_id + channel_id + (thread_ts ?? message_ts) + normalized_intent)` (type + ISO start in 5-minute buckets + sorted participants); per-user `ActionItem` rows reference it
+- [x] **AGT-10**: The agent is one LangGraph graph of at most five nodes (extract → classify → resolve time → check conflicts → propose), compiled with no checkpointer and invoked to completion per message. If the graph is still fighting back at the fixed decision time, it is replaced by the same node functions called in sequence
 - [x] **AGT-11**: A Trigger.dev task (Node runtime) wraps `runAgent()` with an idempotency key from team + channel + ts, and posts the card with a plain `WebClient`
 
 ### Conflict counter-proposal (CFL)
@@ -161,27 +161,27 @@ Deferred. Tracked, not in the roadmap.
 | SLK-05 | Phase 2 | Complete |
 | SLK-06 | Phase 2 | Complete |
 | SLK-08 | Phase 2 | Complete |
-| CAL-01 | Phase 3 | Pending |
-| CAL-02 | Phase 3 | Pending |
-| CAL-03 | Phase 3 | Pending |
-| CAL-04 | Phase 3 | Pending |
-| CAL-05 | Phase 3 | Pending |
+| CAL-01 | Phase 3 | Complete |
+| CAL-02 | Phase 3 | Complete |
+| CAL-03 | Phase 3 | Complete |
+| CAL-04 | Phase 3 | Complete |
+| CAL-05 | Phase 3 | Complete |
 | APR-01 | Phase 4 | Pending |
 | APR-02 | Phase 4 | Pending |
 | APR-03 | Phase 4 | Pending |
 | APR-04 | Phase 4 | Pending |
 | APR-05 | Phase 4 | Pending |
 | AGT-11 | Phase 4 | Complete |
-| AGT-01 | Phase 5 | Pending |
-| AGT-02 | Phase 5 | Pending |
-| AGT-03 | Phase 5 | Pending |
-| AGT-04 | Phase 5 | Pending |
-| AGT-05 | Phase 5 | Pending |
-| AGT-06 | Phase 5 | Pending |
-| AGT-07 | Phase 5 | Pending |
-| AGT-08 | Phase 5 | Pending |
-| AGT-09 | Phase 5 | Pending |
-| AGT-10 | Phase 5 | Pending |
+| AGT-01 | Phase 5 | Complete |
+| AGT-02 | Phase 5 | Complete |
+| AGT-03 | Phase 5 | Complete |
+| AGT-04 | Phase 5 | Complete |
+| AGT-05 | Phase 5 | Complete |
+| AGT-06 | Phase 5 | Complete |
+| AGT-07 | Phase 5 | Complete |
+| AGT-08 | Phase 5 | Complete |
+| AGT-09 | Phase 5 | Complete |
+| AGT-10 | Phase 5 | Complete |
 | DSH-01 | Phase 6 | Pending |
 | DSH-02 | Phase 6 | Pending |
 | DSH-03 | Phase 6 | Pending |
