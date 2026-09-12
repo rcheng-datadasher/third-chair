@@ -32,3 +32,35 @@ export function computeDedupeKey(
   ].join(SEPARATOR);
   return createHash("sha256").update(material).digest("hex");
 }
+
+/** Milliseconds in a 5-minute bucket, for flooring `start_iso` (AGT-09). */
+const FIVE_MINUTES_MS = 5 * 60 * 1000;
+
+/**
+ * Normalizes an extracted intent into the fourth `computeDedupeKey` input:
+ * a string stable across insignificant differences (a few minutes' drift in
+ * the resolved start time, participant id order/duplicates) but distinct
+ * across a genuinely different intent.
+ *
+ * Pure function, no I/O. `start_iso` is floored to its 5-minute bucket (so
+ * 11:00 and 11:04 collapse, 11:05 does not); `participant_slack_ids` is
+ * sorted and de-duplicated so id order/repeats never change the key.
+ *
+ * @param input - The intent's type, resolved `start_iso`, and participant
+ *   Slack ids.
+ * @returns A `type|flooredStartIso|sortedIds` string (D-20). No second hash
+ *   helper — `computeDedupeKey` still owns the actual digest (D-21).
+ */
+export function normalizeIntent(input: {
+  type: string;
+  start_iso: string;
+  participant_slack_ids: string[];
+}): string {
+  const startMs = new Date(input.start_iso).getTime();
+  const flooredMs = Math.floor(startMs / FIVE_MINUTES_MS) * FIVE_MINUTES_MS;
+  const flooredIso = new Date(flooredMs).toISOString();
+
+  const ids = [...new Set(input.participant_slack_ids)].sort().join(",");
+
+  return [input.type, flooredIso, ids].join("|");
+}
