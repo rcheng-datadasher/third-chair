@@ -569,9 +569,13 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
   4. `/impeccable audit` has run on the live dashboard with its output reviewed
 
 **Plans**: 2 (suggested)
+
+- [x] 10-01-PLAN.md
+- [ ] 10-02-PLAN.md
+
 **Wave 1**
 
-- [ ] 10-01: `prisma/reset-demo.ts` (DB truncation + tagged calendar-event cleanup)
+- [x] 10-01: `prisma/reset-demo.ts` (DB truncation + tagged calendar-event cleanup)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -622,7 +626,7 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
 | 7. Integrate + Conflict Counter-Proposal | 0/3 | Not started | - |
 | 8. [optional] S2 Commitment Ledger | 0/2 | Not started (gated) | - |
 | 9. [optional] S1 Graphiti | 0/2 | Not started (gated) | - |
-| 10. Seed-and-Rehearse | 0/2 | Not started | - |
+| 10. Seed-and-Rehearse | 1/2 | In Progress|  |
 | 11. Freeze-and-Record | 0/2 | Not started | - |
 
 ---
