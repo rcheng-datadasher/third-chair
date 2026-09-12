@@ -40,6 +40,9 @@ export async function rejectProposal(
     console.log(
       `already decided proposal_id=${proposalId} status=${proposal.status}`,
     );
+    // Re-render the current state so a stale card (e.g. a redelivered click
+    // on an already-confirmed row) converges to what the row actually holds.
+    await updateProposalCard(proposal.card_channel, proposal.card_ts, proposal);
     return "not_pending";
   }
 
