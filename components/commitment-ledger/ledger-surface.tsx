@@ -2,7 +2,6 @@
 
 import { CopilotKit, useCopilotAction } from "@copilotkit/react-core";
 import { CopilotChat } from "@copilotkit/react-ui";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import "@copilotkit/react-ui/styles.css";
 import type { SeedCommitment } from "@/lib/commitment-ledger/seed-rows";
@@ -94,42 +93,35 @@ function QueryCommitmentsAction() {
  * `queryCommitments` action. Imports neither the AI provider module nor
  * the typed config module — no secret or configuration value crosses into
  * the browser bundle (D-21).
- *
- * Wraps its own subtree in a `QueryClientProvider`: this worktree's
- * `app/layout.tsx` does not yet mount Phase 6's root `<Providers>` (that
- * phase has not merged to `main` here), so the `Nudge` button's
- * `useMutation` would otherwise have no query client above it. Scoped
- * locally rather than editing `app/layout.tsx`/`app/providers.tsx`, which
- * stay untouched (D-15).
+
+ * The `Nudge` button's `useMutation` uses the root `QueryClient` from
+ * `app/providers.tsx`.
  *
  * @returns The ledger's client-rendered chat surface.
  */
 export function LedgerSurface() {
   const [sessionKey, setSessionKey] = useState(0);
-  const [queryClient] = useState(() => new QueryClient());
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <div className="flex h-full flex-col gap-2">
-        <button
-          type="button"
-          onClick={() => setSessionKey((key) => key + 1)}
-          className="self-end rounded border border-border bg-secondary px-3 py-1 text-sm text-secondary-foreground"
-        >
-          New question
-        </button>
-        {/* Remounts the whole provider on a fresh key, starting a new chat
+    <div className="flex h-full flex-col gap-2">
+      <button
+        type="button"
+        onClick={() => setSessionKey((key) => key + 1)}
+        className="self-end rounded border border-border bg-secondary px-3 py-1 text-sm text-secondary-foreground"
+      >
+        New question
+      </button>
+      {/* Remounts the whole provider on a fresh key, starting a new chat
             session — the CopilotKit issue 3317 mitigation (08-RESEARCH Open Question 1). */}
-        <CopilotKit runtimeUrl="/api/copilotkit" key={sessionKey}>
-          <QueryCommitmentsAction />
-          <CopilotChat
-            labels={{
-              title: "Commitment Ledger",
-              initial: "Ask what you owe, or what you're owed.",
-            }}
-          />
-        </CopilotKit>
-      </div>
-    </QueryClientProvider>
+      <CopilotKit runtimeUrl="/api/copilotkit" key={sessionKey}>
+        <QueryCommitmentsAction />
+        <CopilotChat
+          labels={{
+            title: "Commitment Ledger",
+            initial: "Ask what you owe, or what you're owed.",
+          }}
+        />
+      </CopilotKit>
+    </div>
   );
 }
