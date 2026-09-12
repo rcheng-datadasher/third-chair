@@ -6,6 +6,7 @@ import type { GraphNode, GraphSnapshot } from "@/lib/graph/read-graph";
 /** Node-label → chart token. Unknown labels fall back to chart-5. */
 const LABEL_CLASS: Record<string, string> = {
   User: "fill-primary",
+  SlackId: "fill-chart-4",
   Episodic: "fill-chart-1",
   Entity: "fill-chart-2",
   Community: "fill-chart-3",
