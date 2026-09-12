@@ -3,9 +3,6 @@ import type { SlackMessage } from "../../types/slack";
 import { dispatchAgentRun } from "../agent/dispatch";
 import { config } from "../config";
 import { handleApproveProposal } from "./actions/approve-proposal";
-import { EDIT_APPROVE_MODAL_CALLBACK_ID } from "./blocks";
-import { handleEditApproveProposal } from "./handlers/edit-approve-proposal";
-import { handleEditApproveSubmission } from "./handlers/edit-approve-submission";
 
 /**
  * The Bolt process entry point. Registration only — every handler body
@@ -32,8 +29,6 @@ app.event("app_mention", async ({ event }) => {
 });
 
 app.action("approve_proposal", handleApproveProposal);
-app.action("edit_approve_proposal", handleEditApproveProposal);
-app.view(EDIT_APPROVE_MODAL_CALLBACK_ID, handleEditApproveSubmission);
 
 (async () => {
   await app.start();
