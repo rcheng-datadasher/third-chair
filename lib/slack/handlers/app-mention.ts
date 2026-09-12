@@ -6,7 +6,9 @@ import { dispatchSlackMessage } from "../dispatch-slack-message";
 /**
  * Handles an `app_mention` event — SLK-03's diagnostic-fallback trigger. No
  * `ack` here — Bolt 5.1.0 acknowledges Events API envelopes itself before
- * invoking any listener.
+ * invoking any listener. A mention inside a watched channel is dropped:
+ * the `message` listener already handles that same `ts`, and running both
+ * would dispatch two agent runs for one message.
  *
  * @param args - Bolt's event middleware args for an `app_mention` listener.
  * @param args.event - The `AppMentionEvent` payload.
@@ -25,6 +27,7 @@ export async function handleAppMention({
   );
 
   if (!event.user || event.bot_id) return;
+  if (config.slack.watchChannelIds.includes(event.channel)) return;
 
   const message: SlackMessage = {
     teamId: config.slack.teamId,

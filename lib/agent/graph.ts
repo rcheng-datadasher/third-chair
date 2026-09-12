@@ -348,9 +348,10 @@ export async function proposeNode(
     });
   }
 
-  if (!replayed) {
-    await createActionItems(proposal);
-  }
+  // Runs on replays too: a first run that threw between createProposal and
+  // here (e.g. postCard failed) would otherwise leave the Proposal with no
+  // ActionItems forever. `skipDuplicates` makes it a no-op when they exist.
+  await createActionItems(proposal);
 
   return { proposalId: proposal.id, replayed };
 }
@@ -401,8 +402,9 @@ async function createProposal(
 /**
  * Creates one `ActionItem` per participant who has a `User` row in the same
  * team (D-20) — a participant with no `User` row keeps only their
- * `Participant` row. Runs once per newly created Proposal, never on a
- * replayed (P2002-recovered) run.
+ * `Participant` row. Idempotent via the `[proposal_id, user_id]` unique
+ * constraint plus `skipDuplicates`, so it is safe on a replayed
+ * (P2002-recovered) run whose first attempt died before reaching it.
  *
  * @param proposal - The newly created Proposal, with `participants` included.
  */
@@ -425,6 +427,7 @@ async function createActionItems(
       slack_ts: proposal.card_ts ?? proposal.source_ts,
       expires_at: proposal.start,
     })),
+    skipDuplicates: true,
   });
 }
 

@@ -35,7 +35,8 @@ function slackErrorCode(error: unknown): string {
  * had none — a resolution failure never blocks the card.
  *
  * @param proposal - The proposal to load participants for, needing `id`
- *   and `organizer_user_id` (drives the "organizer" state label).
+ *   and `organizer_user_id` (a `User.id`, matched against the row's
+ *   `user_id` to drive the "organizer" state label).
  * @returns One `ParticipantEntry` per Participant row carrying a
  *   `slack_user_id`, in query order.
  */
@@ -77,7 +78,8 @@ export async function loadCardParticipants(
     .map((participant) => ({
       slackUserId: participant.slack_user_id as string,
       state:
-        participant.slack_user_id === proposal.organizer_user_id ||
+        (participant.user_id != null &&
+          participant.user_id === proposal.organizer_user_id) ||
         participant.role === "organizer"
           ? "organizer"
           : (participant.response ?? "pending invite"),
@@ -120,8 +122,10 @@ async function resolveSourceAuthorUserId(
  * Loads the extra card-context fields shared by every render of a
  * proposal's card: the latest linked Decision's `reason` (Phase 5's
  * extraction; absent until that phase runs, or on this branch), and who
- * this proposal is "on behalf of" — the claimed organizer when set,
- * otherwise the source message's own author.
+ * this proposal is "on behalf of" — the claimed organizer when set
+ * (`organizer_user_id` is a `User.id`, so it is mapped to that user's
+ * `slack_user_id` for the mention), otherwise the source message's own
+ * author.
  *
  * @param proposal - The proposal to load context for.
  * @returns `reason` (undefined when no Decision row exists) and
@@ -142,8 +146,14 @@ export async function loadApprovalCardExtras(
     orderBy: { id: "desc" },
   });
 
+  const organizer = proposal.organizer_user_id
+    ? await prisma.user.findUnique({
+        where: { id: proposal.organizer_user_id },
+        select: { slack_user_id: true },
+      })
+    : null;
   const onBehalfOfUserId =
-    proposal.organizer_user_id ??
+    organizer?.slack_user_id ??
     (await resolveSourceAuthorUserId(
       proposal.source_channel,
       proposal.source_ts,

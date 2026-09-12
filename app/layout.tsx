@@ -25,7 +25,11 @@ export const metadata: Metadata = {
  *
  * @param props - Layout props.
  * @param props.children - The active route's scene.
- * @returns The document shell.
+ * @returns The document shell. The wrapper is `h-dvh`, not `min-h-dvh`, so a
+ *   `DataGrid` frame has a bounded ancestor: the grid scrolls inside its own
+ *   frame and its sticky header stays put — with `min-h-dvh` the page itself
+ *   would scroll once a table outgrew the viewport. The content column is
+ *   `overflow-auto` so a route without its own scroll frame still scrolls.
  */
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
@@ -35,9 +39,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full">
         <Providers>
-          <div className="flex min-h-dvh flex-col md:flex-row">
+          <div className="flex h-dvh flex-col md:flex-row">
             <Nav />
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto">
               {children}
             </div>
           </div>
