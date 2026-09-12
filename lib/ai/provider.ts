@@ -17,8 +17,15 @@ export interface CompleteOptions<T> {
   schemaName?: string;
 }
 
-/** Module-scope OpenAI client for the Kilo Gateway, built from the typed config (D-05). */
-const client = new OpenAI({
+/**
+ * The single OpenAI-SDK client instance for this process, pointed at Kilo
+ * Gateway (D-05). Exported (not just used internally by `complete`) so
+ * CopilotKit's `OpenAIAdapter` can be constructed from the same client —
+ * this keeps "all model calls go through lib/ai/provider.ts" true even for
+ * CopilotKit's own request path, which needs a raw client object, not the
+ * `complete<T>()` wrapper (08-RESEARCH Pitfall 3).
+ */
+export const openaiClient = new OpenAI({
   apiKey: config.ai.apiKey,
   baseURL: config.ai.baseUrl,
 });
@@ -88,7 +95,7 @@ export async function complete<T>(opts: CompleteOptions<T>): Promise<T> {
     // avoids widening the whole params type, which would otherwise break
     // the SDK's generic inference of `message.parsed`'s type from
     // `response_format`.
-    const completion = await client.chat.completions.parse({
+    const completion = await openaiClient.chat.completions.parse({
       model: requestedModel,
       messages: [
         { role: "system", content: system },
@@ -122,7 +129,7 @@ export async function complete<T>(opts: CompleteOptions<T>): Promise<T> {
 
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const completion = await client.chat.completions.create({
+      const completion = await openaiClient.chat.completions.create({
         model: requestedModel,
         messages: [
           { role: "system", content: jsonSystem },
