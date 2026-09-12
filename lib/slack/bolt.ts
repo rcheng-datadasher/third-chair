@@ -3,6 +3,7 @@ import { config } from "../config";
 import { handleAppMention } from "./handlers/app-mention";
 import { handleApproveProposal } from "./handlers/approve-proposal";
 import { handleExtractShortcut } from "./handlers/extract-shortcut";
+import { handleRejectProposal } from "./handlers/reject-proposal";
 import { handleSecretaryCommand } from "./handlers/secretary-command";
 import { handleWatchedChannelMessage } from "./handlers/watched-channel-message";
 
@@ -28,6 +29,7 @@ app.shortcut<MessageShortcut>(
 );
 app.command("/secretary", handleSecretaryCommand);
 app.action("approve_proposal", handleApproveProposal);
+app.action("reject_proposal", handleRejectProposal);
 
 (async () => {
   await app.start();
