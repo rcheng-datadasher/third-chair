@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   EmptyRow,
   GRID_CELL,
@@ -10,6 +10,7 @@ import {
 } from "@/components/data-grid";
 import { FeedStatus } from "@/components/feed-status";
 import { StatusChip } from "@/components/status-chip";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   TableBody,
   TableCell,
@@ -32,8 +33,32 @@ async function fetchProposals(): Promise<ProposalRow[]> {
   return res.json();
 }
 
+/** A dashboard decision on one proposal. Same shape the decide route validates. */
+interface Decision {
+  id: string;
+  action: "approve" | "reject";
+}
+
 /**
- * Read-only proposal queue that polls every 4 s, including in background tabs.
+ * Posts an Approve/Reject decision to the decide route.
+ *
+ * @param decision - The proposal id and the action to apply.
+ * @returns The outcome string the domain function returned.
+ * @throws When the endpoint responds with a non-2xx status.
+ */
+async function postDecision(decision: Decision): Promise<string> {
+  const res = await fetch(`/api/proposals/${decision.id}/decide`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ action: decision.action }),
+  });
+  if (!res.ok) throw new Error(`decide ${res.status}`);
+  const { outcome } = (await res.json()) as { outcome: string };
+  return outcome;
+}
+
+/**
+ * Proposal queue that polls every 4 s, including in background tabs.
  * Column grammar shared with the Decision log: chip, primary text, time,
  * confidence. Rows that arrive between polls carry a one-cycle NEW marker.
  *
@@ -50,6 +75,12 @@ export function ProposalQueue({ initialData }: { initialData: ProposalRow[] }) {
     refetchIntervalInBackground: true,
   });
   const fresh = useNewRows(data);
+  const queryClient = useQueryClient();
+  const decide = useMutation({
+    mutationFn: postDecision,
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["proposals"] }),
+  });
+  const busyId = decide.isPending ? decide.variables.id : null;
 
   return (
     <section className="flex min-h-0 flex-1 flex-col gap-3">
@@ -72,11 +103,12 @@ export function ProposalQueue({ initialData }: { initialData: ProposalRow[] }) {
               <TableHead className={`${GRID_HEAD} w-36 text-right`}>
                 Confidence
               </TableHead>
+              <TableHead className={`${GRID_HEAD} w-64`}>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {data.length === 0 ? (
-              <EmptyRow colSpan={4}>No proposals yet</EmptyRow>
+              <EmptyRow colSpan={5}>No proposals yet</EmptyRow>
             ) : (
               data.map((row) => (
                 <TableRow
@@ -100,6 +132,46 @@ export function ProposalQueue({ initialData }: { initialData: ProposalRow[] }) {
                     className={`${GRID_CELL} text-right font-mono tabular-nums`}
                   >
                     {row.confidence === null ? "—" : row.confidence.toFixed(2)}
+                  </TableCell>
+                  <TableCell className={`${GRID_CELL} whitespace-nowrap`}>
+                    <div className="flex items-center gap-2">
+                      {row.status === "pending" && (
+                        <>
+                          <Button
+                            size="sm"
+                            disabled={busyId === row.id}
+                            onClick={() =>
+                              decide.mutate({ id: row.id, action: "approve" })
+                            }
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={busyId === row.id}
+                            onClick={() =>
+                              decide.mutate({ id: row.id, action: "reject" })
+                            }
+                          >
+                            Reject
+                          </Button>
+                        </>
+                      )}
+                      {row.slackUrl && (
+                        <a
+                          href={row.slackUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className={buttonVariants({
+                            variant: "link",
+                            size: "sm",
+                          })}
+                        >
+                          Open in Slack ↗
+                        </a>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

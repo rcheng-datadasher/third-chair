@@ -15,8 +15,8 @@ export default async function Home() {
   return (
     <main className="flex min-h-0 flex-1 flex-col">
       <SceneHeader title="Proposal queue">
-        Every meeting the agent has proposed from Slack, newest first. Approval
-        happens on the Slack card, not here.
+        Every meeting the agent has proposed from Slack, newest first. Approve
+        or reject here or on the Slack card — both stay in sync.
       </SceneHeader>
       <div className="flex min-h-0 flex-1 flex-col px-4 pt-4 pb-6 md:px-6">
         <ProposalQueue initialData={rows} />

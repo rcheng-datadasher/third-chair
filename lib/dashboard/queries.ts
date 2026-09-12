@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { getMessagePermalink } from "@/lib/slack/permalink";
 import { formatHkt } from "@/utils/time";
 
 /** A Proposal projected for display; every time string is already HKT-formatted. */
@@ -8,6 +9,8 @@ export interface ProposalRow {
   status: string;
   startHkt: string;
   confidence: number | null;
+  /** Permalink to the approval card in Slack, or null when no card was posted. */
+  slackUrl: string | null;
 }
 
 /** A Decision projected for display; `whenHkt` derives from the Slack `source_ts`. */
@@ -90,13 +93,19 @@ export async function getProposalRows(): Promise<ProposalRow[]> {
   const rows = await prisma.proposal.findMany({
     orderBy: [{ created_at: "desc" }, { id: "desc" }],
   });
-  return rows.map((p) => ({
-    id: p.id,
-    title: stripSlackMentions(p.title),
-    status: p.status,
-    startHkt: formatHkt(p.start),
-    confidence: toConfidence(p.confidence),
-  }));
+  return Promise.all(
+    rows.map(async (p) => ({
+      id: p.id,
+      title: stripSlackMentions(p.title),
+      status: p.status,
+      startHkt: formatHkt(p.start),
+      confidence: toConfidence(p.confidence),
+      slackUrl:
+        p.card_channel && p.card_ts
+          ? await getMessagePermalink(p.card_channel, p.card_ts)
+          : null,
+    })),
+  );
 }
 
 /**
