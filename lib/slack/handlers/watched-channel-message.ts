@@ -1,6 +1,6 @@
 import type { AllMiddlewareArgs, SlackEventMiddlewareArgs } from "@slack/bolt";
 import { config } from "@/lib/config";
-import type { SlackMessage } from "@/types/slack";
+import { buildSlackMessage } from "../build-slack-message";
 import { dispatchSlackMessage } from "../dispatch-slack-message";
 
 /**
@@ -36,13 +36,13 @@ export async function handleWatchedChannelMessage({
     `watched-channel reached handler event_id=${body.event_id} channel=${event.channel} ts=${event.ts} user=${event.user}`,
   );
 
-  const message: SlackMessage = {
+  const message = buildSlackMessage({
     teamId: config.slack.teamId,
     channelId: event.channel,
     ts: event.ts,
     threadTs: event.thread_ts,
-    userId: event.user ?? "",
+    userId: event.user,
     text: event.text,
-  };
+  });
   await dispatchSlackMessage(message, logger);
 }

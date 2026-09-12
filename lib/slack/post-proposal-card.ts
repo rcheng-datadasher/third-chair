@@ -2,7 +2,11 @@ import { WebAPIPlatformError } from "@slack/web-api";
 import { prisma } from "@/lib/db";
 import { resolveParticipantEmail } from "@/lib/slack/resolve-email";
 import type { Proposal } from "../../prisma/generated/client";
-import { buildApprovalBlocks, buildFallbackText } from "./blocks";
+import {
+  buildApprovalBlocks,
+  buildFallbackText,
+  type ParticipantEntry,
+} from "./blocks";
 import { slackClient } from "./client";
 
 /**
@@ -21,23 +25,25 @@ function slackErrorCode(error: unknown): string {
 }
 
 /**
- * Loads one display label per Participant row for a proposal, for
- * rendering into the card's Participants field. Labels are Slack mentions
- * built from `slack_user_id` — never an email address (SLK-08 privacy:
- * addresses must never reach a Slack-visible surface). For every
- * participant carrying a `slack_user_id`, also resolves and logs their
- * email via `resolveParticipantEmail` (SLK-08), writing it onto the row
- * when the row had none — a resolution failure never blocks the card.
+ * Loads one `ParticipantEntry` per Participant row for a proposal, for
+ * rendering into the card's Participants rich-text list. A row with no
+ * `slack_user_id` is skipped entirely — a `user` rich-text element needs a
+ * real id to mention. Never an email address (SLK-08 privacy: addresses
+ * must never reach a Slack-visible surface). For every participant
+ * carrying a `slack_user_id`, also resolves and logs their email via
+ * `resolveParticipantEmail` (SLK-08), writing it onto the row when the row
+ * had none — a resolution failure never blocks the card.
  *
- * @param proposalId - The Proposal id to load participants for.
- * @returns One label per Participant row, in query order. A row with no
- *   `slack_user_id` renders as the literal `"unknown participant"`.
+ * @param proposal - The proposal to load participants for, needing `id`
+ *   and `organizer_user_id` (drives the "organizer" state label).
+ * @returns One `ParticipantEntry` per Participant row carrying a
+ *   `slack_user_id`, in query order.
  */
-export async function loadParticipantLabels(
-  proposalId: string,
-): Promise<string[]> {
+export async function loadCardParticipants(
+  proposal: Pick<Proposal, "id" | "organizer_user_id">,
+): Promise<ParticipantEntry[]> {
   const participants = await prisma.participant.findMany({
-    where: { proposal_id: proposalId },
+    where: { proposal_id: proposal.id },
   });
 
   await Promise.all(
@@ -66,11 +72,15 @@ export async function loadParticipantLabels(
     }),
   );
 
-  return participants.map((participant) =>
-    participant.slack_user_id
-      ? `<@${participant.slack_user_id}>`
-      : "unknown participant",
-  );
+  return participants
+    .filter((participant) => participant.slack_user_id)
+    .map((participant) => ({
+      slackUserId: participant.slack_user_id as string,
+      state:
+        participant.slack_user_id === proposal.organizer_user_id
+          ? "organizer"
+          : (participant.response ?? "pending invite"),
+    }));
 }
 
 /**
@@ -168,7 +178,7 @@ export async function postProposalCard(
   >,
 ): Promise<{ channel: string; ts: string }> {
   const [participants, extras] = await Promise.all([
-    loadParticipantLabels(proposal.id),
+    loadCardParticipants(proposal),
     loadApprovalCardExtras(proposal),
   ]);
   const cardInput = {

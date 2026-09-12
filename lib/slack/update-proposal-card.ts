@@ -1,6 +1,6 @@
 import {
   loadApprovalCardExtras,
-  loadParticipantLabels,
+  loadCardParticipants,
 } from "@/lib/slack/post-proposal-card";
 import type { Proposal } from "../../prisma/generated/client";
 import {
@@ -88,7 +88,7 @@ async function loadCardInput(
   proposal: UpdateCardProposal,
 ): Promise<ApprovalCardInput> {
   const [participants, extras] = await Promise.all([
-    loadParticipantLabels(proposal.id),
+    loadCardParticipants(proposal),
     loadApprovalCardExtras(proposal),
   ]);
   return {

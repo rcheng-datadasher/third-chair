@@ -1,17 +1,32 @@
+import type {
+  KnownBlock,
+  RichTextElement,
+  RichTextSection,
+} from "@slack/types";
 import { formatHkt } from "@/utils/time";
 
 /** Max length of the card's title line (Slack's mrkdwn field limit governs this, not a header). */
 const TITLE_MAX_LEN = 150;
-/** Max length of any single mrkdwn field's text (Slack's own limit). */
-const MRKDWN_FIELD_MAX_LEN = 2000;
 /** Default "Approving will…" copy fragment for a meeting proposal (Phase 3 delivers the calendar write). */
 const DEFAULT_MEETING_ACTION_FRAGMENT =
   "create a Google Calendar event with a Meet link and invite the participants";
 
 /**
+ * One participant entry ready for the card's rich-text list. Callers
+ * precompute `state` (e.g. "organizer", a `Participant.response`, or the
+ * "pending invite" default) — builders never load their own data or decide
+ * display semantics for a role/response pair.
+ */
+export interface ParticipantEntry {
+  slackUserId: string;
+  /** Precomputed display state, e.g. "organizer" or "pending invite". */
+  state: string;
+}
+
+/**
  * Full shape every card variant (pending, confirmed, dismissed,
  * already_scheduled) needs to render — a decided card keeps the same title,
- * addressee and fields as the pending one, so all four builders share this
+ * addressee and facts as the pending one, so all four builders share this
  * input. Callers (`post-proposal-card.ts`) load `participants` and the
  * extra context fields themselves — builders never load their own data.
  */
@@ -22,8 +37,7 @@ export interface ApprovalCardInput {
   end: Date;
   /** 0–1 fraction (Phase 1's `HARDCODED_CONFIDENCE` scale), or null. */
   confidence: number | null;
-  /** Already-built display labels (Slack mentions), never addresses. */
-  participants: string[];
+  participants: ParticipantEntry[];
   /** `Proposal.created_at`, rendered in HKT via the same formatter as `start`. */
   createdAt: Date;
   /** Extraction reason (`Decision.reason`), or `null`/omitted when no Decision row exists yet. */
@@ -87,39 +101,6 @@ function truncate(text: string, maxLength: number): string {
 }
 
 /**
- * Builds one `mrkdwn` section field: escapes the value, truncates the whole
- * field text to Slack's 2000-character limit, and wraps it with a bold
- * label line.
- *
- * @param label - The field's bold label (e.g. "When").
- * @param value - The untrusted, proposal-derived value to escape and render.
- * @returns A Block Kit `mrkdwn` text object for a `section` block's `fields`.
- */
-function mrkdwnField(label: string, value: string) {
-  return {
-    type: "mrkdwn" as const,
-    text: truncate(`*${label}:*\n${escapeMrkdwn(value)}`, MRKDWN_FIELD_MAX_LEN),
-  };
-}
-
-/**
- * Builds one `mrkdwn` section field WITHOUT escaping the value. Reserved
- * for markup our own code built (a `<@USERID>` Slack mention) — escaping
- * `<`/`>` there would turn a working mention into literal `&lt;@ID&gt;`
- * text. Never pass proposal-derived free text here; use `mrkdwnField`.
- *
- * @param label - The field's bold label (e.g. "Participants").
- * @param rawMarkup - Trusted mrkdwn markup, already safe to render as-is.
- * @returns A Block Kit `mrkdwn` text object for a `section` block's `fields`.
- */
-function mrkdwnRawField(label: string, rawMarkup: string) {
-  return {
-    type: "mrkdwn" as const,
-    text: truncate(`*${label}:*\n${rawMarkup}`, MRKDWN_FIELD_MAX_LEN),
-  };
-}
-
-/**
  * Builds the top-level `text` fallback for a card post/update — used for
  * notifications and accessibility, and required alongside `blocks` on every
  * call (Pitfall 4). Pure string formatting, no I/O.
@@ -146,7 +127,7 @@ export function buildFallbackText(
   }
 }
 
-/** One status's chip word + emoji for the fields grid's Status field. */
+/** One status's chip word + emoji for the facts table's Status row. */
 function statusChipText(
   status: "pending" | "confirmed" | "dismissed" | "already_scheduled",
 ): string {
@@ -163,32 +144,103 @@ function statusChipText(
 }
 
 /**
+ * Builds one label/value row for the facts table. Table cells accept a
+ * `raw_text` element — always rendered literally, never parsed as markup,
+ * so no escaping is needed (a stronger guarantee than mrkdwn+escaping).
+ *
+ * @param label - The row's label cell text (always a literal we control).
+ * @param value - The row's value cell text.
+ * @returns One `TableBlock` row: two `raw_text` cells.
+ */
+function factRow(label: string, value: string) {
+  return [
+    { type: "raw_text" as const, text: label },
+    { type: "raw_text" as const, text: value },
+  ];
+}
+
+/**
+ * Builds the Participants `rich_text` block: an ordered `rich_text_list`,
+ * one item per participant, each rendering a real Slack mention (`user`
+ * element — always highlighted, never escaped) followed by their state.
+ * An empty list falls back to a single "—" line, since Slack rejects a
+ * `rich_text_list` with zero elements.
+ *
+ * @param participants - The proposal's participants, pre-labeled with state.
+ * @returns One `RichTextBlock`.
+ */
+function buildParticipantsBlock(participants: ParticipantEntry[]): KnownBlock {
+  if (participants.length === 0) {
+    return {
+      type: "rich_text",
+      elements: [
+        {
+          type: "rich_text_section",
+          elements: [{ type: "text", text: "—" }],
+        },
+      ],
+    };
+  }
+
+  const items: RichTextSection[] = participants.map((participant) => ({
+    type: "rich_text_section",
+    elements: [
+      { type: "user", user_id: participant.slackUserId },
+      { type: "text", text: ` — ${participant.state}` },
+    ] satisfies RichTextElement[],
+  }));
+
+  return {
+    type: "rich_text",
+    elements: [{ type: "rich_text_list", style: "ordered", elements: items }],
+  };
+}
+
+/**
+ * Builds the Why `rich_text` block: a `rich_text_quote` holding the
+ * extraction reason, or "—" when no Decision row exists yet. `text`
+ * elements are always rendered literally, never parsed as markup, so no
+ * escaping is needed here either.
+ *
+ * @param reason - `Decision.reason`, or `null`/undefined when absent.
+ * @returns One `RichTextBlock`.
+ */
+function buildWhyBlock(reason: string | null | undefined): KnownBlock {
+  return {
+    type: "rich_text",
+    elements: [
+      {
+        type: "rich_text_quote",
+        elements: [{ type: "text", text: reason ?? "—" }],
+      },
+    ],
+  };
+}
+
+/**
  * Builds the card body shared by every status variant: a bold, normal-size
  * title line (no `header` block — Slack renders those oversized), an
- * addressee `context` line naming who this is for, a compact two-column
- * fields section (When, Duration, Participants, Confidence, Status,
- * Created), a quoted Why line, and an "Approving will…" context line.
- * Mentions render highlighted, which is how the addressee is made
- * unmistakable without large type.
+ * addressee `context` line naming who this is for, a `table` block of
+ * scalar facts (When, Duration, Confidence, Status, Created), an ordered
+ * Participants list, a quoted Why block, and an "Approving will…" context
+ * line — each logical group separated by a `divider`. Mentions render
+ * highlighted, which is how the addressee is made unmistakable without
+ * large type.
  *
- * @param p - The proposal (plus resolved participant labels and context) to render.
- * @param status - Drives the Status field's chip word + emoji.
+ * @param p - The proposal (plus resolved participants and context) to render.
+ * @param status - Drives the facts table's Status row.
  * @returns The shared Block Kit blocks array, before the status-specific closer.
  */
 function buildCardBody(
   p: ApprovalCardInput,
   status: "pending" | "confirmed" | "dismissed" | "already_scheduled",
-) {
+): KnownBlock[] {
   const titleText = p.title.trim()
     ? truncate(p.title, TITLE_MAX_LEN)
     : "(untitled proposal)";
   const durationMinutes = Math.round(
     (p.end.getTime() - p.start.getTime()) / 60_000,
   );
-  // Mention markup our own code built from a Participant row — never escape.
-  const participantsText = p.participants.length
-    ? p.participants.join(", ")
-    : "—";
   const confidenceText =
     p.confidence == null ? "—" : `${Math.round(p.confidence * 100)}%`;
   const addresseeText = p.onBehalfOfUserId
@@ -197,50 +249,41 @@ function buildCardBody(
 
   return [
     {
-      type: "section" as const,
-      text: {
-        type: "mrkdwn" as const,
-        text: `*${escapeMrkdwn(titleText)}*`,
-      },
+      type: "section",
+      text: { type: "mrkdwn", text: `*${escapeMrkdwn(titleText)}*` },
     },
     {
-      type: "context" as const,
+      type: "context",
       // Trusted markup (our own mention + emoji shortcode) — never escape.
-      elements: [{ type: "mrkdwn" as const, text: addresseeText }],
+      elements: [{ type: "mrkdwn", text: addresseeText }],
     },
+    { type: "divider" },
     {
-      type: "section" as const,
-      fields: [
-        mrkdwnField("When", formatHkt(p.start)),
-        mrkdwnField("Duration", `${durationMinutes} min`),
-        mrkdwnRawField("Participants", participantsText),
-        mrkdwnField("Confidence", confidenceText),
-        mrkdwnRawField("Status", statusChipText(status)),
-        mrkdwnField("Created", formatHkt(p.createdAt)),
+      type: "table",
+      rows: [
+        factRow("When", formatHkt(p.start)),
+        factRow("Duration", `${durationMinutes} min`),
+        factRow("Confidence", confidenceText),
+        factRow("Status", statusChipText(status)),
+        factRow("Created", formatHkt(p.createdAt)),
       ],
     },
+    { type: "divider" },
+    buildParticipantsBlock(p.participants),
+    { type: "divider" },
+    buildWhyBlock(p.reason),
     {
-      type: "section" as const,
-      text: {
-        type: "mrkdwn" as const,
-        text: truncate(
-          `*Why:*\n> ${escapeMrkdwn(p.reason ?? "—")}`,
-          MRKDWN_FIELD_MAX_LEN,
-        ),
-      },
-    },
-    {
-      type: "context" as const,
+      type: "context",
       elements: [
         {
-          type: "mrkdwn" as const,
+          type: "mrkdwn",
           text: `:calendar: Approving will ${escapeMrkdwn(
             p.action ?? DEFAULT_MEETING_ACTION_FRAGMENT,
           )}.`,
         },
       ],
     },
-  ];
+  ] satisfies KnownBlock[];
 }
 
 /**
@@ -248,43 +291,43 @@ function buildCardBody(
  * Approve/Reject actions block. Reject carries a `confirm` dialog; Approve
  * does not, per the requested UX (Approve is the expected happy path).
  *
- * @param p - The proposal (plus resolved participant labels and context) to render.
+ * @param p - The proposal (plus resolved participants and context) to render.
  * @returns Block Kit blocks array for `chat.postMessage`/`chat.update`.
  */
-export function buildApprovalBlocks(p: ApprovalCardInput) {
+export function buildApprovalBlocks(p: ApprovalCardInput): KnownBlock[] {
   return [
     ...buildCardBody(p, "pending"),
-    { type: "divider" as const },
+    { type: "divider" },
     {
-      type: "actions" as const,
+      type: "actions",
       block_id: "proposal_actions",
       elements: [
         {
-          type: "button" as const,
+          type: "button",
           action_id: "approve_proposal",
-          text: { type: "plain_text" as const, text: "Approve" },
-          style: "primary" as const,
+          text: { type: "plain_text", text: "Approve" },
+          style: "primary",
           value: p.id,
         },
         {
-          type: "button" as const,
+          type: "button",
           action_id: "reject_proposal",
-          text: { type: "plain_text" as const, text: "Reject" },
-          style: "danger" as const,
+          text: { type: "plain_text", text: "Reject" },
+          style: "danger",
           value: p.id,
           confirm: {
-            title: { type: "plain_text" as const, text: "Reject proposal?" },
+            title: { type: "plain_text", text: "Reject proposal?" },
             text: {
-              type: "mrkdwn" as const,
+              type: "mrkdwn",
               text: "This dismisses the proposal. It will not be scheduled.",
             },
-            confirm: { type: "plain_text" as const, text: "Reject" },
-            deny: { type: "plain_text" as const, text: "Cancel" },
+            confirm: { type: "plain_text", text: "Reject" },
+            deny: { type: "plain_text", text: "Cancel" },
           },
         },
       ],
     },
-  ];
+  ] satisfies KnownBlock[];
 }
 
 /**
@@ -296,19 +339,21 @@ export function buildApprovalBlocks(p: ApprovalCardInput) {
  * @param info - Ephemeral decision info from the click payload, if known.
  * @returns A Block Kit `context` block for the decided card's closer.
  */
-function buildDecidedContext(verb: string, emoji: string, info: DecisionInfo) {
+function buildDecidedContext(
+  verb: string,
+  emoji: string,
+  info: DecisionInfo,
+): KnownBlock {
   const who = info.decidedByUserId ? ` by <@${info.decidedByUserId}>` : "";
   const when = info.decidedAt ? ` · ${formatHkt(info.decidedAt)}` : "";
   return {
-    type: "context" as const,
-    elements: [
-      { type: "mrkdwn" as const, text: `${emoji} *${verb}*${who}${when}` },
-    ],
+    type: "context",
+    elements: [{ type: "mrkdwn", text: `${emoji} *${verb}*${who}${when}` }],
   };
 }
 
 /**
- * Builds the confirmed-status card: the same title, addressee and fields as
+ * Builds the confirmed-status card: the same title, addressee and facts as
  * the pending card, with the actions block replaced by a "Confirmed by …"
  * context line — no buttons.
  *
@@ -319,15 +364,16 @@ function buildDecidedContext(verb: string, emoji: string, info: DecisionInfo) {
 export function buildConfirmedBlocks(
   p: ApprovalCardInput,
   info: DecisionInfo = {},
-) {
+): KnownBlock[] {
   return [
     ...buildCardBody(p, "confirmed"),
+    { type: "divider" },
     buildDecidedContext("Confirmed", "✅", info),
   ];
 }
 
 /**
- * Builds the dismissed-status card: the same title, addressee and fields as
+ * Builds the dismissed-status card: the same title, addressee and facts as
  * the pending card, with the actions block replaced by a "Dismissed by …"
  * context line — no buttons.
  *
@@ -338,26 +384,30 @@ export function buildConfirmedBlocks(
 export function buildDismissedBlocks(
   p: ApprovalCardInput,
   info: DecisionInfo = {},
-) {
+): KnownBlock[] {
   return [
     ...buildCardBody(p, "dismissed"),
+    { type: "divider" },
     buildDecidedContext("Dismissed", "⛔", info),
   ];
 }
 
 /**
  * Builds the already-scheduled-status card (Phase 7 territory): the same
- * title, addressee and fields, with a plain status chip closer — no buttons.
+ * title, addressee and facts, with a plain status chip closer — no buttons.
  *
  * @param p - The proposal to render.
  * @returns Block Kit blocks array for `chat.update`.
  */
-export function buildAlreadyScheduledBlocks(p: ApprovalCardInput) {
+export function buildAlreadyScheduledBlocks(
+  p: ApprovalCardInput,
+): KnownBlock[] {
   return [
     ...buildCardBody(p, "already_scheduled"),
+    { type: "divider" },
     {
-      type: "context" as const,
-      elements: [{ type: "mrkdwn" as const, text: "📅 *Already scheduled*" }],
+      type: "context",
+      elements: [{ type: "mrkdwn", text: "📅 *Already scheduled*" }],
     },
   ];
 }
