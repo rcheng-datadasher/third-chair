@@ -110,7 +110,7 @@ Cap: at most two phases execute concurrently at any wall-clock moment. Only one 
 - [ ] **Phase 1: Foundation + Hardcoded Round Trip** - Repo scaffolded, schema pushed, stub interfaces fixed, hardcoded trigger→card→button→`chat.update` proven
 - [ ] **Phase 2: Slack Surface** - Real watched-channel listener, Block Kit approval card, chat.update, email resolution
 - [ ] **Phase 3: Calendar Client** - freebusy, event insert with Meet link, deterministic idempotent id, invite, demo tagging
-- [ ] **Phase 4: Approval Bridge** - Real approve/reject path, organizer claim, Trigger.dev task wrapper, AGENT_TRANSPORT flag
+- [x] **Phase 4: Approval Bridge** - Real approve/reject path, organizer claim, Trigger.dev task wrapper, AGENT_TRANSPORT flag
 - [ ] **Phase 5: Agent + Confidence Gate** - Real LangGraph extraction graph with calibrated confidence branching
 - [ ] **Phase 6: Dashboard** - Action-item queue, Decision log, retro theme, live polling
 - [ ] **Phase 7: Integrate + Conflict Counter-Proposal** - Full path wired live; headline two-alternative conflict card (or degraded warning)
@@ -368,12 +368,12 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
 
 **Plans**: 2 (suggested)
 
-- [ ] 04-01-PLAN.md
+- [x] 04-01-PLAN.md
 - [x] 04-02-PLAN.md
 
 **Wave 1**
 
-- [ ] 04-01: (R1 already merged to main) approve/reject handler + organizer claim + chat.update; Trigger.dev task imports the REAL Phase 5 graph
+- [x] 04-01: (R1 already merged to main) approve/reject handler + organizer claim + chat.update; Trigger.dev task imports the REAL Phase 5 graph
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -648,7 +648,7 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
 | 1. Foundation + Hardcoded Round Trip | 1/3 | In Progress|  |
 | 2. Slack Surface | 2/2 | In Progress|  |
 | 3. Calendar Client | 2/2 | In Progress|  |
-| 4. Approval Bridge | 1/2 | In Progress|  |
+| 4. Approval Bridge | 2/2 | Complete | 2026-09-12 |
 | 5. Agent + Confidence Gate | 3/3 | In Progress|  |
 | 6. Dashboard | 0/3 | Not started | - |
 | 7. Integrate + Conflict Counter-Proposal | 0/3 | Not started | - |

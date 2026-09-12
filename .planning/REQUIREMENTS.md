@@ -41,11 +41,11 @@ Every requirement's check is a hand check that takes under a minute. No requirem
 
 ### Approval gate (APR)
 
-- [ ] **APR-01**: Approving a Proposal runs ordinary backend code: read the row, claim the organizer, create the calendar event, update the card. No graph resume and no model call after approval
-- [ ] **APR-02**: The organizer is claimed with `UPDATE "Proposal" SET organizer_user_id = $me WHERE id = $p AND organizer_user_id IS NULL RETURNING id`; no row back renders an "already scheduled" card state, not an error
-- [ ] **APR-03**: Double-clicking Approve, or a Slack redelivery, creates exactly one calendar event
-- [ ] **APR-04**: The confirmed card shows the calendar event link and Meet link
-- [ ] **APR-05**: `AGENT_TRANSPORT=trigger|inline` switches between Trigger.dev and running the agent inline from Bolt with an env change and restart only
+- [x] **APR-01**: Approving a Proposal runs ordinary backend code: read the row, claim the organizer, create the calendar event, update the card. No graph resume and no model call after approval
+- [x] **APR-02**: The organizer is claimed with `UPDATE "Proposal" SET organizer_user_id = $me WHERE id = $p AND organizer_user_id IS NULL RETURNING id`; no row back renders an "already scheduled" card state, not an error
+- [x] **APR-03**: Double-clicking Approve, or a Slack redelivery, creates exactly one calendar event
+- [x] **APR-04**: The confirmed card shows the calendar event link and Meet link
+- [x] **APR-05**: `AGENT_TRANSPORT=trigger|inline` switches between Trigger.dev and running the agent inline from Bolt with an env change and restart only
 
 ### Agent and confidence gate (AGT)
 
@@ -166,11 +166,11 @@ Deferred. Tracked, not in the roadmap.
 | CAL-03 | Phase 3 | Complete |
 | CAL-04 | Phase 3 | Complete |
 | CAL-05 | Phase 3 | Complete |
-| APR-01 | Phase 4 | Pending |
-| APR-02 | Phase 4 | Pending |
-| APR-03 | Phase 4 | Pending |
-| APR-04 | Phase 4 | Pending |
-| APR-05 | Phase 4 | Pending |
+| APR-01 | Phase 4 | Complete |
+| APR-02 | Phase 4 | Complete |
+| APR-03 | Phase 4 | Complete |
+| APR-04 | Phase 4 | Complete |
+| APR-05 | Phase 4 | Complete |
 | AGT-11 | Phase 4 | Complete |
 | AGT-01 | Phase 5 | Complete |
 | AGT-02 | Phase 5 | Complete |
