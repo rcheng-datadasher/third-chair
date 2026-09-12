@@ -1,0 +1,70 @@
+{
+  "contract": "1.0.0",
+  "flavor": "core",
+  "milestone": null,
+  "phases": [
+    {
+      "number": "1",
+      "name": "Foundation + Hardcoded Round Trip",
+      "status": "pending"
+    },
+    {
+      "number": "2",
+      "name": "Slack Surface",
+      "status": "pending"
+    },
+    {
+      "number": "3",
+      "name": "Calendar Client",
+      "status": "pending"
+    },
+    {
+      "number": "4",
+      "name": "Approval Bridge",
+      "status": "pending"
+    },
+    {
+      "number": "5",
+      "name": "Agent + Confidence Gate",
+      "status": "pending"
+    },
+    {
+      "number": "6",
+      "name": "Dashboard",
+      "status": "pending"
+    },
+    {
+      "number": "7",
+      "name": "Integrate + Conflict Counter-Proposal",
+      "status": "pending"
+    },
+    {
+      "number": "8",
+      "name": "[optional] S2 Commitment Ledger",
+      "status": "pending",
+      "optional": true
+    },
+    {
+      "number": "9",
+      "name": "[optional] S1 Graphiti Preference Memory",
+      "status": "pending",
+      "optional": true
+    },
+    {
+      "number": "10",
+      "name": "Seed-and-Rehearse",
+      "status": "pending"
+    },
+    {
+      "number": "11",
+      "name": "Freeze-and-Record",
+      "status": "pending"
+    }
+  ],
+  "next": {
+    "command": "/gsd:progress --next",
+    "label": "Advance to the next step",
+    "reason": "Phase 01 of 11 · 0% · executing"
+  },
+  "updated_at": "2026-09-11T22:41:44.273Z"
+}
