@@ -7,6 +7,22 @@ import { getCalendarClient } from "./google-client";
 import { toHktRfc3339 } from "./hkt-rfc3339";
 
 /**
+ * Checks whether a caught Calendar API error is a 409 conflict (an
+ * "identifier already exists" response on `events.insert`).
+ *
+ * `GaxiosError` carries the HTTP status on both `status` and
+ * `response.status`; checking both is one comparison, not an
+ * error-classification module (Don't Hand-Roll).
+ *
+ * @param err - The caught error, of unknown shape.
+ * @returns `true` if the error's status is 409.
+ */
+function isConflict(err: unknown): boolean {
+  const e = err as { status?: number; response?: { status?: number } };
+  return e?.status === 409 || e?.response?.status === 409;
+}
+
+/**
  * Reads the Meet URI from an inserted/fetched Calendar event, tolerating an
  * empty value.
  *
@@ -49,6 +65,9 @@ function extractMeetLink(event: calendar_v3.Schema$Event): string {
  * @throws `MissingOrganizerError` if neither `organizerUserId` nor
  *   `proposal.organizer_user_id` resolves to a user id — before any Google
  *   or database call (D-15: never a silent no-op).
+ * @throws `CancelledEventError` if a repeat call's deterministic id 409s
+ *   and the existing event's status is `cancelled` — never returned as a
+ *   reused success (Pitfall D).
  */
 export async function createCalendarEvent(
   proposal: Proposal,
@@ -100,19 +119,45 @@ export async function createCalendarEvent(
     extendedProperties: { private: { demo: "true" } },
   };
 
-  const res = await calendar.events.insert({
-    calendarId: "primary",
-    conferenceDataVersion: 1,
-    sendUpdates: "all",
-    requestBody,
-  });
-  const meetLink = extractMeetLink(res.data);
-  console.log(
-    `[create-event] inserted id=${res.data.id ?? eventId} conferenceStatus=${res.data.conferenceData?.createRequest?.status?.statusCode} meetLink=${meetLink}`,
-  );
-  return {
-    eventId: res.data.id ?? eventId,
-    meetLink,
-    htmlLink: res.data.htmlLink ?? "",
-  };
+  try {
+    const res = await calendar.events.insert({
+      calendarId: "primary",
+      conferenceDataVersion: 1,
+      sendUpdates: "all",
+      requestBody,
+    });
+    const meetLink = extractMeetLink(res.data);
+    console.log(
+      `[create-event] inserted id=${res.data.id ?? eventId} conferenceStatus=${res.data.conferenceData?.createRequest?.status?.statusCode} meetLink=${meetLink}`,
+    );
+    return {
+      eventId: res.data.id ?? eventId,
+      meetLink,
+      htmlLink: res.data.htmlLink ?? "",
+    };
+  } catch (err) {
+    if (!isConflict(err)) throw err;
+
+    // D-12: 409 -> events.get with the same deterministic id, treat as success.
+    // Never re-insert or update here — that is exactly what would send a
+    // second invitation email or create a second conference.
+    console.log(`[create-event] 409 -> events.get id=${eventId}`);
+    const existing = await calendar.events.get({
+      calendarId: "primary",
+      eventId,
+    });
+    if (existing.data.status === "cancelled") {
+      // Pitfall D: undocumented edge case — fail loudly, never fake success.
+      const cancelledErr = new Error(
+        `createCalendarEvent: event ${eventId} for proposal ${proposal.id} exists but is cancelled; cannot reuse it`,
+      );
+      cancelledErr.name = "CancelledEventError";
+      throw cancelledErr;
+    }
+    return {
+      eventId: existing.data.id ?? eventId,
+      meetLink: extractMeetLink(existing.data),
+      htmlLink: existing.data.htmlLink ?? "",
+    };
+  }
 }

@@ -4,9 +4,13 @@
  * Not exported/imported elsewhere. Run directly with `bun lib/calendar/smoke.ts`
  * (bun auto-loads the root `.env`). Checks A's token scope first, then
  * exercises the real `checkConflicts` (D-01, CAL-01) and `createCalendarEvent`
- * against the seeded Proposal (CAL-02..05). Side effect: the first run for a
- * given Proposal id creates a real event and emails its participants; every
- * later run resolves through the 409 fallback.
+ * against the seeded Proposal (CAL-02..05), calling it twice to prove the 409
+ * idempotency fallback (CAL-04), then re-runs `checkConflicts` to confirm the
+ * created event shows up as a real `+08:00` busy block. Side effect: the
+ * first run ever for the seeded Proposal id creates a real event and emails
+ * its participant; every later run resolves both calls through the 409
+ * fallback. After Phase 10's cleanup deletes that event, this script throws
+ * `CancelledEventError` by design — that is the intended behavior, not a bug.
  */
 
 import { prisma } from "../db";
@@ -79,14 +83,48 @@ async function main() {
   const proposal = await prisma.proposal.findUniqueOrThrow({
     where: { dedupe_key: "phase1-seed-proposal" },
   });
-
   const expectedEventId = deriveEventId(proposal.id);
-  const created = await createCalendarEvent(proposal, a.id);
-  console.log(
-    `[smoke] eventId=${created.eventId} expected=${expectedEventId} htmlLink=${created.htmlLink} meetLink=${created.meetLink}`,
+
+  // Two sequential calls: proves the 409 -> events.get fallback is
+  // idempotent (CAL-04), not just that the first insert worked.
+  let idempotencyOk = true;
+  for (let i = 0; i < 2; i++) {
+    const created = await createCalendarEvent(proposal, a.id);
+    console.log(
+      `[smoke] eventId=${created.eventId} expected=${expectedEventId} htmlLink=${created.htmlLink} meetLink=${created.meetLink}`,
+    );
+    if (created.eventId !== expectedEventId) {
+      console.log("[smoke] eventId mismatch");
+      idempotencyOk = false;
+    }
+  }
+  if (!idempotencyOk) {
+    console.log("[smoke] idempotency FAILED");
+    process.exitCode = 1;
+    return;
+  }
+  console.log(`[smoke] idempotent OK eventId=${expectedEventId}`);
+
+  // Re-check freebusy: the seeded event should now show up as a real busy
+  // block, closing success criterion 1 against a real (not empty) result.
+  const slotsAfter = await checkConflicts(
+    a.id,
+    "2026-09-17T00:00:00+08:00",
+    "2026-09-18T00:00:00+08:00",
   );
-  if (created.eventId !== expectedEventId) {
-    console.log("[smoke] eventId mismatch");
+  const proposalStart = proposal.start.getTime();
+  const proposalEnd = proposal.end.getTime();
+  const covering = slotsAfter.find(
+    (slot) =>
+      new Date(slot.startIso).getTime() <= proposalStart &&
+      new Date(slot.endIso).getTime() >= proposalEnd,
+  );
+  if (covering) {
+    console.log(
+      `[smoke] busy-block OK ${covering.startIso}..${covering.endIso}`,
+    );
+  } else {
+    console.log("[smoke] busy-block FAILED");
     process.exitCode = 1;
   }
 }
