@@ -35,6 +35,8 @@ yarn-error.log*
 # env files (D-16: one untracked root .env; example files are copy sources and stay tracked)
 .env
 .env.*
+.env.local
+.env.cloud
 !.env.local.example
 !.env.cloud.example
 
