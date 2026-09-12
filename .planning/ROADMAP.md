@@ -512,6 +512,10 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
   3. Sending a nudge produces a Slack approval card, not a message sent directly
 
 **Plans**: 2 (suggested, only if attempted)
+
+- [ ] 08-01-PLAN.md
+- [ ] 08-02-PLAN.md
+
 **Wave 1**
 
 - [ ] 08-01: `commitment` extraction type + heterogeneous component selection logic
@@ -543,13 +547,17 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
   3. The same scheduling input produces a visibly different proposal before vs. after the preference is learned
 
 **Plans**: 2 (suggested, only if attempted)
+
+- [x] 09-01-PLAN.md
+- [x] 09-02-PLAN.md
+
 **Wave 1**
 
-- [ ] 09-01: FastAPI service (separate repo) + `/episodes`/`/preferences` + Neo4j round trip
+- [x] 09-01: FastAPI service (separate repo) + `/episodes`/`/preferences` + Neo4j round trip
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 09-02: Before/after demo wiring in `lib/agent/**` + `graph/queries.cypher`
+- [x] 09-02: Before/after demo wiring in `lib/agent/**` + `graph/queries.cypher`
 
 ### Phase 10: Seed-and-Rehearse
 
@@ -635,8 +643,8 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
 | 5. Agent + Confidence Gate | 0/3 | Not started | - |
 | 6. Dashboard | 0/3 | Not started | - |
 | 7. Integrate + Conflict Counter-Proposal | 0/3 | Not started | - |
-| 8. [optional] S2 Commitment Ledger | 0/2 | Not started (gated) | - |
-| 9. [optional] S1 Graphiti | 0/2 | Not started (gated) | - |
+| 8. [optional] S2 Commitment Ledger | 0/2 | Planned    |  |
+| 9. [optional] S1 Graphiti | 2/2 | In Progress|  |
 | 10. Seed-and-Rehearse | 1/2 | In Progress|  |
 | 11. Freeze-and-Record | 1/2 | In Progress|  |
 
