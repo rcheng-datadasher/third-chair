@@ -160,23 +160,30 @@ function factRow(label: string, value: string) {
 }
 
 /**
- * Builds the Participants `rich_text` block: an ordered `rich_text_list`,
- * one item per participant, each rendering a real Slack mention (`user`
- * element — always highlighted, never escaped) followed by their state.
- * An empty list falls back to a single "—" line, since Slack rejects a
- * `rich_text_list` with zero elements.
+ * Builds the Participants `rich_text` block: a bold "Participants" label,
+ * then either an ordered `rich_text_list` — one item per participant, each
+ * rendering a real Slack mention (`user` element — always highlighted,
+ * never escaped) followed by their state — or, when there are none, a
+ * plain sentence. Slack rejects a `rich_text_list` with zero elements, so
+ * the empty state is never a list, and never a lone dash.
  *
  * @param participants - The proposal's participants, pre-labeled with state.
  * @returns One `RichTextBlock`.
  */
 function buildParticipantsBlock(participants: ParticipantEntry[]): KnownBlock {
+  const label: RichTextSection = {
+    type: "rich_text_section",
+    elements: [{ type: "text", text: "Participants", style: { bold: true } }],
+  };
+
   if (participants.length === 0) {
     return {
       type: "rich_text",
       elements: [
+        label,
         {
           type: "rich_text_section",
-          elements: [{ type: "text", text: "—" }],
+          elements: [{ type: "text", text: "No participants recorded yet." }],
         },
       ],
     };
@@ -192,7 +199,10 @@ function buildParticipantsBlock(participants: ParticipantEntry[]): KnownBlock {
 
   return {
     type: "rich_text",
-    elements: [{ type: "rich_text_list", style: "ordered", elements: items }],
+    elements: [
+      label,
+      { type: "rich_text_list", style: "ordered", elements: items },
+    ],
   };
 }
 
