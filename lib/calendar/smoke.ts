@@ -2,11 +2,14 @@
  * Throwaway exercise script — calls live Google APIs as user A.
  *
  * Not exported/imported elsewhere. Run directly with `bun lib/calendar/smoke.ts`
- * (bun auto-loads the root `.env`). Checks A's token scope first, then makes
- * one live `freebusy.query` call (D-01).
+ * (bun auto-loads the root `.env`). Checks A's token scope first, then
+ * exercises the real `checkConflicts` (D-01, CAL-01).
  */
+
 import { prisma } from "../db";
-import { getCalendarClient, getGoogleAuth } from "./google-client";
+import { checkConflicts } from "./freebusy";
+import { getGoogleAuth } from "./google-client";
+import { toHktRfc3339 } from "./hkt-rfc3339";
 
 const FREEBUSY_SCOPES = [
   "https://www.googleapis.com/auth/calendar",
@@ -23,6 +26,14 @@ async function main() {
   const a = await prisma.user.findFirstOrThrow({
     where: { google_refresh_token: { not: null } },
   });
+
+  // Self-check: toHktRfc3339 must produce the exact expected offset string.
+  const hktCheck = toHktRfc3339(new Date("2026-09-17T07:00:00.000Z"));
+  if (hktCheck !== "2026-09-17T15:00:00+08:00") {
+    console.log(`[smoke] hkt-rfc3339 FAILED got=${hktCheck}`);
+    process.exitCode = 1;
+    return;
+  }
 
   // Scope check, before any Calendar call.
   const auth = await getGoogleAuth(a.id);
@@ -50,18 +61,13 @@ async function main() {
     return;
   }
 
-  // First live call.
-  const calendar = await getCalendarClient(a.id);
-  const res = await calendar.freebusy.query({
-    requestBody: {
-      timeMin: "2026-09-17T00:00:00+08:00",
-      timeMax: "2026-09-18T00:00:00+08:00",
-      timeZone: "Asia/Hong_Kong",
-      items: [{ id: "primary" }],
-    },
-  });
-  console.log(JSON.stringify(res.data.calendars));
-  console.log("[smoke] freebusy ok");
+  // First live call, through the real checkConflicts.
+  const slots = await checkConflicts(
+    a.id,
+    "2026-09-17T00:00:00+08:00",
+    "2026-09-18T00:00:00+08:00",
+  );
+  console.log(`[smoke] freebusy ok slots=${slots.length}`);
 }
 
 main()
