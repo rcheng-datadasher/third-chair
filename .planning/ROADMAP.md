@@ -290,13 +290,17 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
   4. `ps aux | grep -i bolt` (or open terminals) shows exactly one Bolt process across every worktree
 
 **Plans**: 2 (suggested)
+
+- [x] 02-01-PLAN.md
+- [x] 02-02-PLAN.md
+
 **Wave 1**
 
-- [ ] 02-01: Bolt runtime smoke test + watched-channel filter + shortcut/mention/slash wiring + ack-first pattern
+- [x] 02-01: Bolt runtime smoke test + watched-channel filter + shortcut/mention/slash wiring + ack-first pattern
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 02-02: Real approval card (Block Kit) + chat.update status chip + users.info email resolution
+- [x] 02-02: Real approval card (Block Kit) + chat.update status chip + users.info email resolution
 
 ### Phase 3: Calendar Client
 
@@ -625,7 +629,7 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation + Hardcoded Round Trip | 1/3 | In Progress|  |
-| 2. Slack Surface | 0/2 | Not started | - |
+| 2. Slack Surface | 2/2 | In Progress|  |
 | 3. Calendar Client | 0/2 | Not started | - |
 | 4. Approval Bridge | 1/2 | In Progress|  |
 | 5. Agent + Confidence Gate | 0/3 | Not started | - |
