@@ -8,8 +8,10 @@ import type {
 import type { SlackMessage } from "../../types/slack";
 import { resolveStartIso } from "../../utils/time";
 import { prisma } from "../db";
+import { postConflictCard } from "../slack/post-conflict-card";
 import { postEditApproveCard } from "../slack/post-edit-approve-card";
 import { postProposalCard } from "../slack/post-proposal-card";
+import { collectBusyBlocks, summarizeClash } from "./conflict";
 import { computeDedupeKey, normalizeIntent } from "./dedupe";
 import {
   type ExtractedIntent,
@@ -17,6 +19,7 @@ import {
   extractIntents,
   type LocatedIntent,
 } from "./extract-intents";
+import { findClash } from "./overlap";
 
 /** The three confidence bands `classifyNode` routes on (D-01/D-02/AGT-08). */
 export type ConfidenceBand = "high" | "medium" | "low";
@@ -156,16 +159,43 @@ export function resolveTimeNode(
 }
 
 /**
- * Placeholder conflict check. Real conflict detection is Phase 7's
- * (CFL-01, D-02) — this phase's graph never branches on `conflicts`.
+ * Real conflict check (CFL-01): builds the requested meeting range from the
+ * resolved intent, collects the whole HKT working day's busy set
+ * (`freebusy.query` ∪ pending Proposals, D-09), and logs whether the range
+ * clashes. Does not branch — routing on a clash is `proposeNode`'s job
+ * (AGT-10, node count stays at five).
  *
- * @param _state - Current graph state (unused).
- * @returns A partial state update with an empty `conflicts` list.
+ * @param state - Current graph state; reads `intent.start_iso` and
+ *   `intent.duration_minutes`.
+ * @returns A partial state update setting `conflicts` to the day's whole
+ *   busy set (empty when there is no resolved intent).
  */
-export function checkConflictsNode(
-  _state: typeof AgentState.State,
-): Partial<typeof AgentState.State> {
-  return { conflicts: [] };
+export async function checkConflictsNode(
+  state: typeof AgentState.State,
+): Promise<Partial<typeof AgentState.State>> {
+  const { intent, message } = state;
+  if (intent == null || intent.start_iso == null) {
+    return { conflicts: [] };
+  }
+
+  const start = new Date(intent.start_iso);
+  const durationMinutes = intent.duration_minutes ?? DEFAULT_DURATION_MINUTES;
+  const end = new Date(start.getTime() + durationMinutes * 60_000);
+
+  const { busy } = await collectBusyBlocks({
+    teamId: message.teamId,
+    requestedStart: start,
+    requestedEnd: end,
+  });
+
+  const clash = findClash(start, end, busy);
+  console.log(
+    clash
+      ? `[conflict] clash found against ${summarizeClash(clash)}`
+      : "[conflict] clash none",
+  );
+
+  return { conflicts: busy };
 }
 
 /**
@@ -249,11 +279,25 @@ export async function proposeNode(
   // posting a card. Accepted for the demo's single-watched-channel volume;
   // upgrade path is a DB-level advisory lock or a conditional update.
   if (proposal.card_ts == null) {
-    // High band gets the one-click approve/reject card; medium gets Edit &
-    // approve — one call site, one poster selected by band (D-15).
-    const postCard =
-      state.band === "high" ? postProposalCard : postEditApproveCard;
-    const { channel, ts } = await postCard(proposal);
+    const clash = findClash(start, end, state.conflicts);
+    let channel: string;
+    let ts: string;
+    if (clash != null) {
+      // A clash takes precedence over the band-selected card (CFL-05): the
+      // conflict card carries Approve and Reject anyway, so nothing is lost
+      // even for a medium-band proposal. Task 2 replaces this warning
+      // variant with the alternatives variant when the model call succeeds.
+      ({ channel, ts } = await postConflictCard(proposal, {
+        kind: "warning",
+        clashSummary: summarizeClash(clash),
+      }));
+    } else {
+      // High band gets the one-click approve/reject card; medium gets Edit &
+      // approve — one call site, one poster selected by band (D-15).
+      const postCard =
+        state.band === "high" ? postProposalCard : postEditApproveCard;
+      ({ channel, ts } = await postCard(proposal));
+    }
     proposal = await prisma.proposal.update({
       where: { id: proposal.id },
       data: { card_channel: channel, card_ts: ts },
