@@ -1,6 +1,6 @@
 "use client";
 
-import { Inbox, ScrollText } from "lucide-react";
+import { Inbox, ScrollText, Waypoints } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 const LINKS = [
   { href: "/", label: "Queue", Icon: Inbox },
   { href: "/decisions", label: "Decisions", Icon: ScrollText },
+  { href: "/graph", label: "Graph", Icon: Waypoints },
 ] as const;
 
 /**
