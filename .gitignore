@@ -61,3 +61,6 @@ prisma/generated
 # Trigger.dev CLI local build cache (04-02 Task 1: created the first time
 # `bunx trigger.dev dev` runs from the repo root)
 .trigger/
+# scratch integration harness (own .env, .remember, node_modules) and GSD session lock
+connection_test/
+.planning/milestone.lock
