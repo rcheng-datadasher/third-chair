@@ -197,21 +197,39 @@ function buildParticipantsBlock(participants: ParticipantEntry[]): KnownBlock {
 }
 
 /**
- * Builds the Why `rich_text` block: a `rich_text_quote` holding the
- * extraction reason, or "—" when no Decision row exists yet. `text`
+ * Builds the Why `rich_text` block: a bold "Why this action item" label
+ * followed by a `rich_text_quote` holding the extraction reason. `text`
  * elements are always rendered literally, never parsed as markup, so no
  * escaping is needed here either.
+ *
+ * Empty state: Slack renders an empty/whitespace rich_text element as a
+ * blank block with no visible content — a `.trim()` check guards against
+ * that, falling back to a full sentence instead of a lone dash.
+ *
+ * `reason` comes from `loadApprovalCardExtras`' Decision lookup (latest row
+ * linked by `proposal_id`) — it fills in automatically once this branch
+ * merges with Phase 5's graph on `main`, which is what actually writes
+ * `Decision.reason`.
  *
  * @param reason - `Decision.reason`, or `null`/undefined when absent.
  * @returns One `RichTextBlock`.
  */
 function buildWhyBlock(reason: string | null | undefined): KnownBlock {
+  const reasonText = reason?.trim()
+    ? reason.trim()
+    : "Reason not recorded yet — the agent's decision note will appear here.";
   return {
     type: "rich_text",
     elements: [
       {
+        type: "rich_text_section",
+        elements: [
+          { type: "text", text: "Why this action item", style: { bold: true } },
+        ],
+      },
+      {
         type: "rich_text_quote",
-        elements: [{ type: "text", text: reason ?? "—" }],
+        elements: [{ type: "text", text: reasonText }],
       },
     ],
   };
