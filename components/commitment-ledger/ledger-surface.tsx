@@ -6,7 +6,7 @@ import { useState } from "react";
 import "@copilotkit/react-ui/styles.css";
 import type { SeedCommitment } from "@/lib/commitment-ledger/seed-rows";
 import { seedCommitments } from "@/lib/commitment-ledger/seed-rows";
-import { selectCommitmentComponent } from "@/lib/commitment-ledger/select-component";
+import { CommitmentRow } from "./commitment-row";
 
 /** The arguments the model may pass to `queryCommitments`; both optional. */
 interface QueryCommitmentsArgs {
@@ -76,13 +76,11 @@ function QueryCommitmentsAction() {
       }
       const rows = result as SeedCommitment[];
       return (
-        <ul className="list-none space-y-1 p-0">
+        <div className="flex flex-col gap-2">
           {rows.map((row) => (
-            <li key={row.id} className="text-sm">
-              {row.what} — {row.who} ({selectCommitmentComponent(row)})
-            </li>
+            <CommitmentRow key={row.id} row={row} />
           ))}
-        </ul>
+        </div>
       );
     },
   });
@@ -111,7 +109,7 @@ export function LedgerSurface() {
         New question
       </button>
       {/* Remounts the whole provider on a fresh key, starting a new chat
-          session — the #3317 mitigation (08-RESEARCH Open Question 1). */}
+          session — the CopilotKit issue 3317 mitigation (08-RESEARCH Open Question 1). */}
       <CopilotKit runtimeUrl="/api/copilotkit" key={sessionKey}>
         <QueryCommitmentsAction />
         <CopilotChat
