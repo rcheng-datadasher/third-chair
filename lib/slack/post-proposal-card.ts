@@ -2,7 +2,7 @@ import { WebAPIPlatformError } from "@slack/web-api";
 import { prisma } from "@/lib/db";
 import { resolveParticipantEmail } from "@/lib/slack/resolve-email";
 import type { Proposal } from "../../prisma/generated/client";
-import { buildApprovalBlocks } from "./blocks";
+import { buildApprovalBlocks, buildFallbackText } from "./blocks";
 import { slackClient } from "./client";
 
 /**
@@ -74,10 +74,81 @@ export async function loadParticipantLabels(
 }
 
 /**
- * Posts a new approval card for a Proposal to its source channel.
+ * Resolves the Slack user id of a message's author, given where it was
+ * posted. Used only as a last resort when `Proposal.organizer_user_id`
+ * isn't set yet (Phase 4 concept) — never faked; a failure or a message
+ * that can't be found returns `undefined` rather than throwing, so the "On
+ * behalf of" field is simply omitted.
+ *
+ * @param channel - The channel the source message was posted in.
+ * @param ts - The source message's own timestamp.
+ * @returns The author's Slack user id, or `undefined` when unresolvable.
+ */
+async function resolveSourceAuthorUserId(
+  channel: string,
+  ts: string,
+): Promise<string | undefined> {
+  try {
+    const history = await slackClient.conversations.history({
+      channel,
+      latest: ts,
+      inclusive: true,
+      limit: 1,
+    });
+    const message = history.messages?.[0];
+    return message?.ts === ts ? message.user : undefined;
+  } catch (error) {
+    console.log(
+      `source author resolution failed channel=${channel} ts=${ts} code=${slackErrorCode(error)}`,
+    );
+    return undefined;
+  }
+}
+
+/**
+ * Loads the extra card-context fields shared by every render of a
+ * proposal's card: the latest linked Decision's `reason` (Phase 5's
+ * extraction; absent until that phase runs, or on this branch), and who
+ * this proposal is "on behalf of" — the claimed organizer when set,
+ * otherwise the source message's own author.
+ *
+ * @param proposal - The proposal to load context for.
+ * @returns `reason` (undefined when no Decision row exists) and
+ *   `onBehalfOfUserId` (undefined when unresolvable — never faked).
+ */
+export async function loadApprovalCardExtras(
+  proposal: Pick<
+    Proposal,
+    "id" | "organizer_user_id" | "source_channel" | "source_ts"
+  >,
+): Promise<{ reason?: string; onBehalfOfUserId?: string }> {
+  // No `created_at` column on Decision; `id` (cuid, roughly time-ordered)
+  // is the best available recency proxy for "the latest linked Decision".
+  // ponytail: good enough for one Decision-per-Proposal in this phase;
+  // revisit if Phase 5 ever links more than one.
+  const decision = await prisma.decision.findFirst({
+    where: { proposal_id: proposal.id },
+    orderBy: { id: "desc" },
+  });
+
+  const onBehalfOfUserId =
+    proposal.organizer_user_id ??
+    (await resolveSourceAuthorUserId(
+      proposal.source_channel,
+      proposal.source_ts,
+    ));
+
+  return { reason: decision?.reason, onBehalfOfUserId };
+}
+
+/**
+ * Posts a new approval card for a Proposal, as a threaded reply to its
+ * source message (never a top-level post — the reply keeps the card
+ * anchored to the request that created it).
  *
  * @param proposal - The proposal to post, needing `id`, `title`,
- *   `source_channel`, `start`, `end` and `confidence`.
+ *   `source_channel`, `source_ts`, `start`, `end`, `confidence`,
+ *   `created_at` and `organizer_user_id`.
  * @returns The channel and message timestamp of the posted card, to be
  *   stored on the Proposal row for a later `chat.update`.
  * @throws When the Slack API call fails (network error, invalid channel, etc.)
@@ -85,22 +156,38 @@ export async function loadParticipantLabels(
 export async function postProposalCard(
   proposal: Pick<
     Proposal,
-    "id" | "title" | "source_channel" | "start" | "end" | "confidence"
+    | "id"
+    | "title"
+    | "source_channel"
+    | "source_ts"
+    | "start"
+    | "end"
+    | "confidence"
+    | "created_at"
+    | "organizer_user_id"
   >,
 ): Promise<{ channel: string; ts: string }> {
-  const participants = await loadParticipantLabels(proposal.id);
-  const blocks = buildApprovalBlocks({
+  const [participants, extras] = await Promise.all([
+    loadParticipantLabels(proposal.id),
+    loadApprovalCardExtras(proposal),
+  ]);
+  const cardInput = {
     id: proposal.id,
     title: proposal.title,
     start: proposal.start,
     end: proposal.end,
     confidence: proposal.confidence,
     participants,
-  });
+    createdAt: proposal.created_at,
+    reason: extras.reason,
+    onBehalfOfUserId: extras.onBehalfOfUserId,
+  };
+  const blocks = buildApprovalBlocks(cardInput);
 
   const result = await slackClient.chat.postMessage({
     channel: proposal.source_channel,
-    text: `${proposal.title} — awaiting approval`,
+    thread_ts: proposal.source_ts,
+    text: buildFallbackText("pending", cardInput),
     blocks,
   });
 

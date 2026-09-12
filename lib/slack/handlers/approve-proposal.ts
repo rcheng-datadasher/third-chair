@@ -29,8 +29,8 @@ export async function handleApproveProposal({
   // ack() FIRST — before any DB/network call.
   await ack();
 
-  const action = (body as BlockButtonAction).actions[0];
-  const proposalId = action?.value;
+  const clickAction = body as BlockButtonAction;
+  const proposalId = clickAction.actions[0]?.value;
   if (!proposalId) return;
 
   const proposal = await prisma.proposal.findUnique({
@@ -54,8 +54,12 @@ export async function handleApproveProposal({
   console.log(`proposal approved proposal_id=${proposalId} status=confirmed`);
   // Spread the pre-update row with its NEW status — passing the row as read
   // (still `pending`) would re-render the approval card with buttons intact.
+  // decidedByUserId/decidedAt are ephemeral (click-time only, never
+  // persisted — no schema change this phase).
   await updateProposalCard(proposal.card_channel, proposal.card_ts, {
     ...proposal,
     status: "confirmed",
+    decidedByUserId: clickAction.user.id,
+    decidedAt: new Date(),
   });
 }
