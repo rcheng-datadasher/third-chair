@@ -70,8 +70,9 @@ export async function fetchGraphPreferences(
 /**
  * Writes one distilled preference fact to the Graphiti service as an episode
  * (`POST /episodes`). Mirrors {@link fetchGraphPreferences}'s fail-closed
- * contract: unset config, a slow/unreachable service or a non-ok status all
- * return `false` and never throw, so learning a preference can never break
+ * contract: unset config, an unreachable service, a non-ok status or a
+ * write slower than 60 s (Graphiti runs an LLM pass per episode; ~10 s is
+ * normal) all return `false` and never throw, so learning a preference can never break
  * the scheduling run it rides along with.
  *
  * @param userId - The Slack user id the fact belongs to (Graphiti `group_id`).
@@ -91,7 +92,7 @@ export async function postGraphPreference(
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ user_id: userId, ...fact }),
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.timeout(60_000),
     });
     return res.ok;
   } catch {

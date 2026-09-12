@@ -22,12 +22,12 @@ export default async function GraphPage() {
         </h1>
         <p className="max-w-prose text-base text-muted-foreground">
           What Graphiti has learned, straight from Neo4j. {graph.nodes.length}{" "}
-          nodes, {graph.edges.length} edges. Reload after ingesting a preference
-          to see the change.
+          nodes, {graph.edges.length} edges. Updates live as preferences are
+          learned from Slack.
         </p>
       </header>
       <div className="flex min-h-0 flex-1 flex-col px-4 pt-4 pb-6 md:px-6">
-        <GraphView graph={graph} />
+        <GraphView initialData={graph} />
       </div>
     </main>
   );

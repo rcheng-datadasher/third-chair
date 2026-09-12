@@ -10,19 +10,21 @@ export type GraphEdge = { source: string; target: string; type: string };
 /** Nodes plus edges, ready for the SVG view. */
 export type GraphSnapshot = { nodes: GraphNode[]; edges: GraphEdge[] };
 
-/** Shape of one Neo4j Query API v2 response we care about. */
+/** Shape of one Neo4j Query API v2 response we care about: 3-string rows. */
 const QueryResponse = z.object({
-  data: z.object({
-    values: z.array(z.tuple([z.string(), z.array(z.string()), z.string()])),
-  }),
+  data: z.object({ values: z.array(z.array(z.string().nullable())) }),
 });
 
-/** Cypher: every node with its first label and a display name. */
-const NODES = `MATCH (n) RETURN elementId(n), labels(n),
-  coalesce(n.name, n.key, left(n.content, 40), '') LIMIT 200`;
+/** Cypher: every episode as [id, group_id (Slack user), content JSON]. */
+const EPISODES = `MATCH (e:Episodic) RETURN elementId(e), e.group_id, e.content
+  ORDER BY e.created_at LIMIT 200`;
 
-/** Cypher: every relationship as source id, [type], target id (tuple-shaped like NODES). */
-const EDGES = `MATCH (a)-[r]->(b) RETURN elementId(a), [type(r)], elementId(b) LIMIT 400`;
+/** Cypher: every non-episode node as [id, first label, name]. */
+const OTHER_NODES = `MATCH (n) WHERE NOT n:Episodic
+  RETURN elementId(n), labels(n)[0], coalesce(n.name, '') LIMIT 200`;
+
+/** Cypher: every relationship as [source id, type, target id]. */
+const EDGES = `MATCH (a)-[r]->(b) RETURN elementId(a), type(r), elementId(b) LIMIT 400`;
 
 /**
  * Runs one Cypher statement through Neo4j's HTTP Query API (v2), so the
@@ -30,12 +32,10 @@ const EDGES = `MATCH (a)-[r]->(b) RETURN elementId(a), [type(r)], elementId(b) L
  * `NEO4J_URI`; the Query API always listens on :7474.
  *
  * @param statement - A read-only Cypher statement returning three columns.
- * @returns The raw `[string, string[], string]` rows.
+ * @returns The raw `[string, string, string]` rows (nulls become "").
  * @throws If `NEO4J_URI` is unset or Neo4j answers with a non-2xx status.
  */
-async function runCypher(
-  statement: string,
-): Promise<[string, string[], string][]> {
+async function runCypher(statement: string): Promise<string[][]> {
   const { neo4jUri, neo4jUser, neo4jPassword } = config.graph;
   if (!neo4jUri) throw new Error("NEO4J_URI is not set");
   const url = `http://${new URL(neo4jUri).hostname}:7474/db/neo4j/query/v2`;
@@ -50,31 +50,63 @@ async function runCypher(
     cache: "no-store",
   });
   if (!res.ok) throw new Error(`Neo4j query failed: ${res.status}`);
-  return QueryResponse.parse(await res.json()).data.values;
+  return QueryResponse.parse(await res.json()).data.values.map((row) =>
+    row.map((v) => v ?? ""),
+  );
 }
 
 /**
- * Reads the whole Graphiti graph (bounded to 200 nodes / 400 edges) for the
- * dashboard's graph view.
+ * Renders an episode's JSON body (`{"key": value}`) as `key = value`; falls
+ * back to the first 40 characters when it isn't the distilled-fact shape.
+ *
+ * @param content - The episode's `content` property.
+ * @returns A one-line display name.
+ */
+function factName(content: string): string {
+  try {
+    const [key, value] = Object.entries(JSON.parse(content))[0] ?? [];
+    if (typeof key === "string") {
+      return `${key} = ${Array.isArray(value) ? value.join(", ") : String(value)}`;
+    }
+  } catch {
+    // not JSON — fall through to the raw prefix
+  }
+  return content.slice(0, 40);
+}
+
+/**
+ * Reads the whole Graphiti graph for the dashboard's graph view. Each Slack
+ * user (Graphiti `group_id`) becomes a hub node with a `STATED` edge to
+ * every preference episode they own, so the preference memory reads as a
+ * graph even before Graphiti has extracted entities from the facts; any
+ * real Entity/Community nodes and relationships are drawn as well.
  *
  * @returns Nodes and edges; both empty when Neo4j holds nothing yet.
  * @throws Propagates {@link runCypher} failures.
  */
 export async function readGraph(): Promise<GraphSnapshot> {
-  const [nodeRows, edgeRows] = await Promise.all([
-    runCypher(NODES),
+  const [episodes, others, rels] = await Promise.all([
+    runCypher(EPISODES),
+    runCypher(OTHER_NODES),
     runCypher(EDGES),
   ]);
-  return {
-    nodes: nodeRows.map(([id, labels, name]) => ({
-      id,
-      label: labels[0] ?? "Node",
-      name,
-    })),
-    edges: edgeRows.map(([source, [type], target]) => ({
-      source,
-      target,
-      type: type ?? "",
-    })),
-  };
+  const nodes: GraphNode[] = [];
+  const edges: GraphEdge[] = [];
+  const users = new Set<string>();
+  for (const [id, userId, content] of episodes) {
+    const hub = `user:${userId}`;
+    if (!users.has(userId)) {
+      users.add(userId);
+      nodes.push({ id: hub, label: "User", name: userId });
+    }
+    nodes.push({ id, label: "Episodic", name: factName(content) });
+    edges.push({ source: hub, target: id, type: "STATED" });
+  }
+  for (const [id, label, name] of others) {
+    nodes.push({ id, label: label || "Node", name });
+  }
+  for (const [source, type, target] of rels) {
+    edges.push({ source, target, type });
+  }
+  return { nodes, edges };
 }

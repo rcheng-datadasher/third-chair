@@ -180,13 +180,14 @@ export async function learnPreferencesNode(
     return { learnedPreferenceKeys: [] };
   }
   const facts = await extractPreferences(state.message.text);
-  const learnedPreferenceKeys: string[] = [];
-  for (const fact of facts) {
-    if (await postGraphPreference(state.message.userId, fact)) {
-      learnedPreferenceKeys.push(fact.key);
-    }
-  }
-  return { learnedPreferenceKeys };
+  const accepted = await Promise.all(
+    facts.map((fact) => postGraphPreference(state.message.userId, fact)),
+  );
+  return {
+    learnedPreferenceKeys: facts
+      .filter((_, i) => accepted[i])
+      .map((f) => f.key),
+  };
 }
 
 /**
