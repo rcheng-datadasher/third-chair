@@ -17,6 +17,7 @@ import {
   extractIntents,
   type LocatedIntent,
 } from "./extract-intents";
+import { fetchGraphPreferences } from "./graph-preferences";
 
 /** The three confidence bands `classifyNode` routes on (D-01/D-02/AGT-08). */
 export type ConfidenceBand = "high" | "medium" | "ignored";
@@ -214,9 +215,17 @@ export async function proposeNode(
     }),
   );
 
+  const graphPrefs = await fetchGraphPreferences(message.userId);
+  const graphDefaultDuration =
+    typeof graphPrefs?.default_meeting_duration === "number"
+      ? graphPrefs.default_meeting_duration
+      : null;
+
   const start = new Date(validated.start_iso ?? intent.start_iso);
   const durationMinutes =
-    validated.duration_minutes ?? DEFAULT_DURATION_MINUTES;
+    validated.duration_minutes ??
+    graphDefaultDuration ??
+    DEFAULT_DURATION_MINUTES;
   const end = new Date(start.getTime() + durationMinutes * 60_000);
 
   const participantRows = await buildParticipantRows(
