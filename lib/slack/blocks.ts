@@ -49,6 +49,10 @@ export interface ApprovalCardInput {
   onBehalfOfUserId?: string;
   /** Fragment completing "Approving will …". Defaults to the meeting action; later phases may pass another. */
   action?: string;
+  /** `Proposal.calendar_html_link` (confirmed cards only, APR-04). Omitted/empty until the Calendar write lands. */
+  calendarHtmlLink?: string;
+  /** `Proposal.meet_link` (confirmed cards only, APR-04). May be empty while conference creation is still settling. */
+  meetLink?: string;
 }
 
 /**
@@ -384,9 +388,44 @@ function buildDecidedContext(
 }
 
 /**
+ * Builds the confirmed card's calendar/Meet links context block (APR-04,
+ * D-10). Either link may be an empty string or absent — conference
+ * creation is asynchronous and the column may be empty on an older row —
+ * so each link renders only when non-empty, and the block itself is
+ * omitted entirely when neither link is available. Slack rejects a link
+ * element with an empty URL, so an unconditional render is never safe here.
+ *
+ * @param calendarHtmlLink - The proposal's Calendar event link, if any.
+ * @param meetLink - The proposal's Meet link, if any.
+ * @returns One `context` block, or `null` when there is nothing to show.
+ */
+function buildConfirmedLinksBlock(
+  calendarHtmlLink: string | undefined,
+  meetLink: string | undefined,
+): KnownBlock | null {
+  const elements: { type: "mrkdwn"; text: string }[] = [];
+  if (calendarHtmlLink) {
+    elements.push({
+      type: "mrkdwn",
+      text: `<${calendarHtmlLink}|Open in Google Calendar>`,
+    });
+  }
+  if (meetLink) {
+    elements.push({
+      type: "mrkdwn",
+      text: `<${meetLink}|Join with Google Meet>`,
+    });
+  }
+  if (elements.length === 0) return null;
+  return { type: "context", elements };
+}
+
+/**
  * Builds the confirmed-status card: the same title, addressee and facts as
  * the pending card, with the actions block replaced by a "Confirmed by …"
- * context line — no buttons.
+ * context line — no buttons — plus the Calendar event link and the Meet
+ * link when they are available (`calendar_html_link` / `meet_link`,
+ * APR-04).
  *
  * @param p - The proposal to render.
  * @param info - Ephemeral decision info (who clicked, when), if known.
@@ -396,10 +435,12 @@ export function buildConfirmedBlocks(
   p: ApprovalCardInput,
   info: DecisionInfo = {},
 ): KnownBlock[] {
+  const linksBlock = buildConfirmedLinksBlock(p.calendarHtmlLink, p.meetLink);
   return [
     ...buildCardBody(p, "confirmed"),
     { type: "divider" },
     buildDecidedContext("Confirmed", "✅", info),
+    ...(linksBlock ? [linksBlock] : []),
   ];
 }
 

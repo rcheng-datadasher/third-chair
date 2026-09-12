@@ -31,6 +31,8 @@ export type UpdateCardProposal = Pick<
   | "organizer_user_id"
   | "source_channel"
   | "source_ts"
+  | "calendar_html_link"
+  | "meet_link"
 > &
   Partial<DecisionInfo>;
 
@@ -101,6 +103,8 @@ export async function loadCardInput(
     createdAt: proposal.created_at,
     reason: extras.reason,
     onBehalfOfUserId: extras.onBehalfOfUserId,
+    calendarHtmlLink: proposal.calendar_html_link ?? undefined,
+    meetLink: proposal.meet_link ?? undefined,
   };
 }
 

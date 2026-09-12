@@ -3,28 +3,31 @@ import type {
   BlockButtonAction,
   SlackActionMiddlewareArgs,
 } from "@slack/bolt";
-import { prisma } from "../../db";
-import { updateProposalCard } from "../update-proposal-card";
+import { approveProposal } from "@/lib/slack/approve";
 
 /**
  * Handles the "Approve" button click on a Proposal card: acknowledges
- * immediately, resolves the proposal from the button's own value,
- * conditionally marks it confirmed (only from `pending`, so a double click
- * or a race with Reject is a no-op), and updates the card in place using
- * the channel/ts stored on the Proposal row (never the identifiers carried
- * in the click payload, which can drift — D-11).
+ * immediately, then delegates entirely to `approveProposal` (the token
+ * guard, the organizer claim, the real Calendar write and the stored-card
+ * update all live there). This listener holds no database call, no status
+ * write and no Calendar call of its own — it only reads the button value
+ * and the clicking user's id, and renders ephemeral feedback from the
+ * returned outcome.
  *
  * @param args - Bolt's block-action middleware args.
- * @param args.ack - Bolt's ack function; must be called first (D-07).
+ * @param args.ack - Bolt's ack function; must be called first.
  * @param args.body - The raw block_actions payload.
- * @returns Resolves once the proposal is transitioned (or found already
- *   decided) and, when transitioned, the card is updated.
- * @throws never — every failure path returns quietly or is logged; Slack
- *   must not see a thrown error from an action handler.
+ * @param args.respond - Bolt's response_url helper, used only for ephemeral
+ *   feedback — never for the confirmed-card transition itself.
+ * @returns Resolves once `approveProposal` has run and any ephemeral
+ *   feedback has been sent.
+ * @throws never — every outcome is handled; Slack must not see a thrown
+ *   error from an action handler.
  */
 export async function handleApproveProposal({
   ack,
   body,
+  respond,
 }: SlackActionMiddlewareArgs & AllMiddlewareArgs): Promise<void> {
   // ack() FIRST — before any DB/network call.
   await ack();
@@ -33,33 +36,35 @@ export async function handleApproveProposal({
   const proposalId = clickAction.actions[0]?.value;
   if (!proposalId) return;
 
-  const proposal = await prisma.proposal.findUnique({
-    where: { id: proposalId },
-  });
-  if (!proposal) return;
+  const outcome = await approveProposal(proposalId, clickAction.user.id);
 
-  // Conditional transition: only a proposal still `pending` can be approved,
-  // so a double click or a race with Reject leaves the first chip in place.
-  const { count } = await prisma.proposal.updateMany({
-    where: { id: proposalId, status: "pending" },
-    data: { status: "confirmed" },
-  });
-  if (count === 0) {
-    console.log(
-      `already decided proposal_id=${proposalId} status=${proposal.status}`,
-    );
-    return;
+  switch (outcome) {
+    case "confirmed":
+      // The card itself is the feedback — no ephemeral message.
+      break;
+    case "not_organizer":
+      await respond({
+        response_type: "ephemeral",
+        text: "Only the connected calendar owner can approve this proposal. Nothing was written to Google Calendar.",
+      });
+      break;
+    case "already_scheduled":
+      await respond({
+        response_type: "ephemeral",
+        text: "Another user already claimed this proposal.",
+      });
+      break;
+    case "not_pending":
+      await respond({
+        response_type: "ephemeral",
+        text: "This proposal was already handled — the card has been refreshed.",
+      });
+      break;
+    case "not_found":
+      await respond({
+        response_type: "ephemeral",
+        text: "That proposal no longer exists.",
+      });
+      break;
   }
-
-  console.log(`proposal approved proposal_id=${proposalId} status=confirmed`);
-  // Spread the pre-update row with its NEW status — passing the row as read
-  // (still `pending`) would re-render the approval card with buttons intact.
-  // decidedByUserId/decidedAt are ephemeral (click-time only, never
-  // persisted — no schema change this phase).
-  await updateProposalCard(proposal.card_channel, proposal.card_ts, {
-    ...proposal,
-    status: "confirmed",
-    decidedByUserId: clickAction.user.id,
-    decidedAt: new Date(),
-  });
 }
