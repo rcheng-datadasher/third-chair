@@ -608,8 +608,11 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
 
 **Plans**: 2 (suggested)
 
+- [ ] 11-01-PLAN.md
+- [x] 11-02-PLAN.md
+
 - [ ] 11-01: Screen-record one clean run
-- [ ] 11-02: Finalize README (competitive section, batch-first, OAuth, interrupt() note, ponytail-debt, abandoned stretch)
+- [x] 11-02: Finalize README (competitive section, batch-first, OAuth, interrupt() note, ponytail-debt, abandoned stretch)
 
 ## Progress
 
@@ -627,7 +630,7 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
 | 8. [optional] S2 Commitment Ledger | 0/2 | Not started (gated) | - |
 | 9. [optional] S1 Graphiti | 0/2 | Not started (gated) | - |
 | 10. Seed-and-Rehearse | 1/2 | In Progress|  |
-| 11. Freeze-and-Record | 0/2 | Not started | - |
+| 11. Freeze-and-Record | 1/2 | In Progress|  |
 
 ---
 *Roadmap created: 2026-09-11*
