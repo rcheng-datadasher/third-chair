@@ -513,16 +513,16 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
 
 **Plans**: 2 (suggested, only if attempted)
 
-- [ ] 08-01-PLAN.md
-- [ ] 08-02-PLAN.md
+- [x] 08-01-PLAN.md
+- [x] 08-02-PLAN.md
 
 **Wave 1**
 
-- [ ] 08-01: `commitment` extraction type + heterogeneous component selection logic
+- [x] 08-01: `commitment` extraction type + heterogeneous component selection logic
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 08-02: CopilotKit ledger surface + nudge-through-approval-card wiring
+- [x] 08-02: CopilotKit ledger surface + nudge-through-approval-card wiring
 
 ### Phase 9: [optional] S1 — Graphiti Preference Memory
 
@@ -643,7 +643,7 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
 | 5. Agent + Confidence Gate | 0/3 | Not started | - |
 | 6. Dashboard | 0/3 | Not started | - |
 | 7. Integrate + Conflict Counter-Proposal | 0/3 | Not started | - |
-| 8. [optional] S2 Commitment Ledger | 0/2 | Planned    |  |
+| 8. [optional] S2 Commitment Ledger | 2/2 | In Progress|  |
 | 9. [optional] S1 Graphiti | 2/2 | In Progress|  |
 | 10. Seed-and-Rehearse | 1/2 | In Progress|  |
 | 11. Freeze-and-Record | 1/2 | In Progress|  |
