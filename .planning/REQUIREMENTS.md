@@ -23,13 +23,13 @@ Every requirement's check is a hand check that takes under a minute. No requirem
 ### Slack surface (SLK)
 
 - [ ] **SLK-01**: The Bolt process runs in Socket Mode as its own process (`bun lib/slack/bolt.ts`) and holds a stable connection for at least a minute
-- [ ] **SLK-02**: Messages in channels listed in `SLACK_WATCH_CHANNEL_IDS` reach the agent unprompted; messages from other channels, bot messages and edit/delete subtypes are dropped on the handler's first line
-- [ ] **SLK-03**: The "Extract action items" message shortcut, `app_mention` and `/secretary` each reach the handler (a log line confirms)
-- [ ] **SLK-04**: Every listener acks within 3 seconds and hands slow work off, so no duplicate cards appear from Slack retries
-- [ ] **SLK-05**: An approval card (Block Kit) shows the proposal's title, HKT time, duration, participants and confidence, with **Approve** and **Reject** buttons whose `value` carries the proposal id
-- [ ] **SLK-06**: On Approve or Reject, the same message updates in place via `chat.update` using the channel + ts stored on the Proposal; the buttons are replaced by a status chip (confirmed / dismissed)
+- [x] **SLK-02**: Messages in channels listed in `SLACK_WATCH_CHANNEL_IDS` reach the agent unprompted; messages from other channels, bot messages and edit/delete subtypes are dropped on the handler's first line
+- [x] **SLK-03**: The "Extract action items" message shortcut, `app_mention` and `/secretary` each reach the handler (a log line confirms)
+- [x] **SLK-04**: Every listener acks within 3 seconds and hands slow work off, so no duplicate cards appear from Slack retries
+- [x] **SLK-05**: An approval card (Block Kit) shows the proposal's title, HKT time, duration, participants and confidence, with **Approve** and **Reject** buttons whose `value` carries the proposal id
+- [x] **SLK-06**: On Approve or Reject, the same message updates in place via `chat.update` using the channel + ts stored on the Proposal; the buttons are replaced by a status chip (confirmed / dismissed)
 - [ ] **SLK-07**: The trigger → hardcoded card → button → `chat.update` round trip works end to end before any LLM or calendar code exists
-- [ ] **SLK-08**: A participant's email is resolved from their Slack profile via `users.info`
+- [x] **SLK-08**: A participant's email is resolved from their Slack profile via `users.info`
 
 ### Calendar (CAL)
 
@@ -155,12 +155,12 @@ Deferred. Tracked, not in the roadmap.
 | FND-10 | Phase 1 | Complete |
 | SLK-01 | Phase 1 | Pending |
 | SLK-07 | Phase 1 | Pending |
-| SLK-02 | Phase 2 | Pending |
-| SLK-03 | Phase 2 | Pending |
-| SLK-04 | Phase 2 | Pending |
-| SLK-05 | Phase 2 | Pending |
-| SLK-06 | Phase 2 | Pending |
-| SLK-08 | Phase 2 | Pending |
+| SLK-02 | Phase 2 | Complete |
+| SLK-03 | Phase 2 | Complete |
+| SLK-04 | Phase 2 | Complete |
+| SLK-05 | Phase 2 | Complete |
+| SLK-06 | Phase 2 | Complete |
+| SLK-08 | Phase 2 | Complete |
 | CAL-01 | Phase 3 | Pending |
 | CAL-02 | Phase 3 | Pending |
 | CAL-03 | Phase 3 | Pending |
