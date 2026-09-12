@@ -157,6 +157,13 @@ steals events from the first.
 - `bun run db:seed` — seeds identities and demo data.
 - `bun run check` — runs Biome (`biome check --write .`), the only formatter/linter in this repo.
 
+### No login (prototype)
+
+This is a hackathon prototype: there is no auth or login of any kind. The dashboard and the
+CopilotKit chat under `/commitments` act as seed user A, taken from `SEED_USER_A_*` in `.env`
+(see `lib/config.ts` → `config.seed.userA`). To "switch user", change those values and re-run
+`bun run db:seed`.
+
 ### Environment variables
 
 Every name below is read once, at process start, through the repo's single typed config module
@@ -212,6 +219,7 @@ workflow engine).
 | Zep Cloud; a cloud graph database during the build window | No free tier; adds venue-wifi round trips to an already wifi-dependent demo |
 | Batch sweep / scheduler for detection | Documented as the production design below, not built — detection runs per-message for the demo |
 | Account-linking UI | The Slack-user-to-Google-refresh-token mapping is seeded by hand for the demo's two users |
+| Auth / login | Prototype only — the web UI and `/commitments` chat are hard-pinned to seed user A via `.env` |
 
 ## Production design notes
 
