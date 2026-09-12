@@ -87,6 +87,11 @@ export function renderNumberedLines(messages: SlackMessage[]): string {
  * verified confidence rubric, and the extraction rules the model must
  * follow (never a calendar date, weekday/day_offset/time_of_day hints only).
  *
+ * When the batch has more than one message (05-02: recent channel history
+ * passed as extraction context), the prompt tells the model every message
+ * but the last is context only — useful for resolving who/when the last
+ * message refers to, never itself a candidate action item.
+ *
  * @param now - The instant the run started, used only to state today's HKT date.
  * @returns The full system prompt string.
  */
@@ -98,14 +103,15 @@ ${CONFIDENCE_RUBRIC}
 
 Rules:
 - Produce exactly one intent object per numbered message. message_index is the message's bracketed number.
+- When more than one message is given, every message except the LAST is context only: use it to resolve who/when/what the last message refers to (a name, a time, "same as before", "@x and I"), but only the LAST message is a candidate action item — is_actionable is false for every earlier message regardless of its own content, since it already had its own chance to be evaluated when it arrived.
 - type is always "meeting".
-- is_actionable is true only for a request to schedule a meeting, call or talk.
+- is_actionable is true only for a request to schedule a meeting, call or talk, and only for the last message in the batch.
 - score is the sum of intent_points + time_points + participant_points + fitness_points. confidence is score / 10.
 - reason is one sentence citing each dimension's point value, e.g. "Intent 3 (explicit 'let's meet'), Time 3 (next Friday 11am), Participants 2 (@A and @B), Fitness 2 -> 10/10". Never comment on anyone's mood, tone or character.
 - Never output a calendar date. A named weekday goes in weekday. "Today", "tomorrow" or "in N days" go in day_offset as 0, 1 or N. A clock time goes in time_of_day as 24-hour HH:MM. Anything not stated is null.
 - start_iso is always null; it is filled in later by code, not by you.
 - duration_minutes is set only when the message states a length.
-- participant_slack_ids includes only ids written as <@ID> inside that specific message.
+- participant_slack_ids includes ids written as <@ID> inside that message; for the LAST message, also include any id from an earlier context message that the last message clearly refers to (e.g. "@x and I", "same time as Tuesday with @y").
 - title is at most eight words.`;
 }
 
@@ -158,7 +164,14 @@ export function reconcileScore(intent: ExtractedIntent): ExtractedIntent {
  * passed through `reconcileScore` before being located, so `score` and
  * `confidence` are always code-derived, never the model's raw output.
  *
- * @param messages - The Slack messages to extract from, in order.
+ * `messages` may hold recent channel history followed by the triggering
+ * message (05-02) — `buildExtractionSystemPrompt` tells the model only the
+ * last message is a candidate action item, the rest is context for
+ * resolving references. Callers still get one `LocatedIntent` back per
+ * message; discarding the context messages' intents is the caller's job
+ * (`extractNode` keeps only the one whose `ts` matches the trigger).
+ *
+ * @param messages - The Slack messages to extract from, in order, trigger message last.
  * @param ctx - Extraction context (currently just `now`, the run's start time).
  * @returns One `LocatedIntent` per message the model returned an intent
  *   for, with `message_index` resolved back to that message's real Slack

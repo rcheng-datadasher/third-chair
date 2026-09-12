@@ -8,6 +8,8 @@ import type {
 import type { SlackMessage } from "../../types/slack";
 import { resolveStartIso } from "../../utils/time";
 import { prisma } from "../db";
+import { fetchChannelContext } from "../slack/fetch-channel-context";
+import { listHumanChannelMembers } from "../slack/list-human-channel-members";
 import { postEditApproveCard } from "../slack/post-edit-approve-card";
 import { postProposalCard } from "../slack/post-proposal-card";
 import { computeDedupeKey, normalizeIntent } from "./dedupe";
@@ -110,14 +112,24 @@ export const AgentState = Annotation.Root({
   }),
 });
 
+/** How many preceding channel messages `extractNode` fetches as extraction context (05-02). */
+const CHANNEL_CONTEXT_LIMIT = 20;
+
 /**
- * Runs `extractIntents` on the one triggering message and keeps only the
- * intent whose resolved Slack `ts` matches it (extraction is batch-shaped;
- * a single-message run should still guard against a mismatched index).
+ * Runs `extractIntents` on the triggering message plus its recent channel
+ * history (05-02: recent history is extraction context — earlier messages
+ * help resolve names/times the trigger message only refers to, e.g. "same
+ * time as Tuesday"), and keeps only the intent whose resolved Slack `ts`
+ * matches the trigger (context messages' own intents are discarded here —
+ * they already had their own run when they first arrived, so nothing posts
+ * a card for them a second time).
  *
  * A whitespace-only message short-circuits without calling the model
  * (edge AGT-10/empty) — there's nothing for the model to extract from, and
  * skipping the call keeps a Trigger.dev retry storm of empty events cheap.
+ *
+ * A `fetchChannelContext` failure (Slack error) is logged and never blocks
+ * extraction — it just falls back to running on the trigger message alone.
  *
  * @param state - Current graph state.
  * @returns A partial state update setting `intent` (and `reason` for the
@@ -129,7 +141,23 @@ export async function extractNode(
   if (state.message.text.trim() === "") {
     return { intent: null, reason: "empty message text; model not called" };
   }
-  const located = await extractIntents([state.message], { now: state.now });
+
+  let context: SlackMessage[] = [];
+  try {
+    context = await fetchChannelContext(
+      state.message.channelId,
+      state.message.ts,
+      CHANNEL_CONTEXT_LIMIT,
+    );
+  } catch (err) {
+    console.warn(
+      `[extractNode] channel context fetch failed channel=${state.message.channelId} ts=${state.message.ts}: ${err}; extracting on trigger message alone`,
+    );
+  }
+
+  const located = await extractIntents([...context, state.message], {
+    now: state.now,
+  });
   const intent = located.find((i) => i.ts === state.message.ts) ?? null;
   return { intent };
 }
@@ -238,7 +266,10 @@ export async function proposeNode(
   const validated = ExtractedIntentSchema.parse(intent);
 
   const mentionedIds = extractMentionedIds(message.text);
-  const participantIds = [...new Set([message.userId, ...mentionedIds])].sort();
+  const namedIds = [
+    ...new Set([...validated.participant_slack_ids, ...mentionedIds]),
+  ];
+  const participantIds = await resolveParticipantIds(message, namedIds);
 
   const dedupeKey = computeDedupeKey(
     message.teamId,
@@ -407,6 +438,57 @@ async function createActionItems(
 function extractMentionedIds(text: string): string[] {
   const matches = text.matchAll(/<@([A-Za-z0-9]+)>/g);
   return [...matches].map((m) => m[1]);
+}
+
+/** Cap on channel members auto-invited when nobody is named (05-02). */
+const MAX_AUTO_INVITED_MEMBERS = 25;
+
+/**
+ * Resolves which Slack user ids become Participants for a proposal (05-02
+ * user rule: default participants = every human channel member unless
+ * people are named).
+ *
+ * When `namedIds` is non-empty (someone was named in the intent or
+ * @mentioned in the trigger message), participants are exactly the author
+ * plus those named ids. When nobody is named, participants default to
+ * every human member of the channel the message was posted in — capped at
+ * `MAX_AUTO_INVITED_MEMBERS` (logged when truncated) so a very large
+ * channel doesn't blow up the Participant/ActionItem write. A
+ * `listHumanChannelMembers` failure (Slack error) is logged and falls back
+ * to author-only rather than blocking the proposal.
+ *
+ * @param message - The triggering Slack message; `message.userId` is
+ *   always included as the organizer.
+ * @param namedIds - Ids named in the intent's `participant_slack_ids` or
+ *   the trigger message's own `<@U…>` mentions; empty when nobody was named.
+ * @returns Deduped, sorted participant Slack ids, author always included.
+ */
+async function resolveParticipantIds(
+  message: SlackMessage,
+  namedIds: string[],
+): Promise<string[]> {
+  if (namedIds.length > 0) {
+    return [...new Set([message.userId, ...namedIds])].sort();
+  }
+
+  try {
+    const members = await listHumanChannelMembers(message.channelId);
+    const others = members
+      .map((m) => m.slackUserId)
+      .filter((id) => id !== message.userId);
+    const capped = others.slice(0, MAX_AUTO_INVITED_MEMBERS);
+    if (capped.length < others.length) {
+      console.warn(
+        `[resolveParticipantIds] channel=${message.channelId} has ${others.length} other human members; capped auto-invite at ${MAX_AUTO_INVITED_MEMBERS}`,
+      );
+    }
+    return [...new Set([message.userId, ...capped])].sort();
+  } catch (err) {
+    console.warn(
+      `[resolveParticipantIds] listHumanChannelMembers failed channel=${message.channelId}: ${err}; falling back to author-only`,
+    );
+    return [message.userId];
+  }
 }
 
 /**
