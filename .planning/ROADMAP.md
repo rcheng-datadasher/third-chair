@@ -609,7 +609,7 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 10-02: Seed conversation + rehearse 3× + impeccable audit
+- [x] 10-02: Seed conversation + rehearse 3× + impeccable audit
 
 ### Phase 11: Freeze-and-Record
 
@@ -659,7 +659,7 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
 | 7. Integrate + Conflict Counter-Proposal | 2/3 | In Progress|  |
 | 8. [optional] S2 Commitment Ledger | 2/2 | In Progress|  |
 | 9. [optional] S1 Graphiti | 2/2 | In Progress|  |
-| 10. Seed-and-Rehearse | 1/2 | In Progress|  |
+| 10. Seed-and-Rehearse | 2/2 | In Progress|  |
 | 11. Freeze-and-Record | 2/2 | In Progress|  |
 
 ---
