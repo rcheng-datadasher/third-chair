@@ -54,7 +54,6 @@ done by hand in each one. This is env-only, per the repo rule.
 run is the one you screen-record (14:45-14:55), then final README (14:55-15:00). Do not rehearse
 three times and *then* record — that is the 25 minutes the schedule no longer has.
 
-
 **Concurrency is capped by memory, not cores.** A dry run on this machine (16 cores, 15.4 GB)
 exhausted RAM and had to be killed: 0.3 GB free, 34 node/claude processes, 11 orphaned agent
 worktrees. GSD's `parallelization` flag is a boolean gate with **no count limit** —
@@ -68,13 +67,13 @@ use one terminal with `parallelization=true` (<=3 executors). Waves use two term
 setting is the default. Run `git worktree prune` between phases and stop the Next.js/Bolt
 processes any phase does not need. Below ~2 GB free, clean up before starting a phase.
 
-
 **Optional phases (8 and 9) — kept, not scheduled.** Both retain full RESEARCH.md, CONTEXT.md and
 plans; nothing was deleted. They are simply **not in the default run order**: go straight from
 Phase 7 to Phase 10. GSD will not start them on its own — `auto_advance` is off and every phase is
 launched by an explicit `/gsd-execute-phase N`.
 
 Reinstate one **only** if all three hold:
+
 1. R2 is merged and Phase 7 has started on time (13:15) — its inputs, Phase 5's schema and
    Phase 6's dashboard, are on `main`;
 2. free RAM is >= 8 GB (P7's three executors + one inline session is the 4-executor exception,
@@ -103,7 +102,6 @@ confidence gate, invite-by-email, demo tagging and the conflict counter-proposal
 A round ends when its slowest phase ends, so R1 is bounded by the slowest of P2/P3/P5.
 Times assume parallel plan execution inside each phase is enabled (local bare remote — see the
 restore instructions); without it phases run their plans sequentially and every box above grows.
-
 
 Cap: at most two phases execute concurrently at any wall-clock moment. Only one Bolt process runs across every worktree at any time — kill it before starting it elsewhere.
 
@@ -250,7 +248,7 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
 
 **Plans**: 3 (suggested)
 
-- [ ] 01-01-PLAN.md
+- [x] 01-01-PLAN.md
 - [ ] 01-02-PLAN.md
 - [ ] 01-03-PLAN.md
 
