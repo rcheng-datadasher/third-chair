@@ -19,12 +19,12 @@ import {
 } from "./extract-intents";
 
 /** The three confidence bands `classifyNode` routes on (D-01/D-02/AGT-08). */
-export type ConfidenceBand = "high" | "medium" | "low";
+export type ConfidenceBand = "high" | "medium" | "ignored";
 
-/** Confidence at or above this, plus explicit day and time hints, buckets "high". Tuned in Task 1 step 7 against the developer's samples. */
-export const HIGH_FROM = 0.75;
-/** Confidence below this (or no actionable intent) buckets "low". Tuned in Task 1 step 7 against the developer's samples. */
-export const LOW_BELOW = 0.4;
+/** Score (0-10) at or above this buckets "high" (one-click approval card). */
+export const HIGH_FROM = 9;
+/** Score (0-10) at or above this (but below `HIGH_FROM`) buckets "medium" and shows the Edit & approve card; at or below is "ignored" and never shown. */
+export const SHOW_FROM = 7;
 /** Fallback meeting length when the message states none. */
 export const DEFAULT_DURATION_MINUTES = 30;
 
@@ -33,29 +33,40 @@ export const DEFAULT_DURATION_MINUTES = 30;
  * decision in the graph goes through this, never a second ad-hoc
  * threshold check.
  *
- * @param intent - The extracted intent for this message, or `null` when
- *   extraction returned nothing.
- * @returns "low" for no intent / non-actionable / confidence below
- *   `LOW_BELOW`; "high" for confidence at or above `HIGH_FROM` with an
- *   explicit time and a day hint; "medium" otherwise (AGT-04's vague-time
- *   narrowing).
+ * @param score - An intent's rubric score (0-10), already reconciled by
+ *   `reconcileScore`.
+ * @returns "ignored" for `score` at or below `SHOW_FROM - 1` (6); "high"
+ *   for `score` at or above `HIGH_FROM` (9); "medium" otherwise (7-8).
  */
-export function bucketConfidence(intent: LocatedIntent | null): ConfidenceBand {
-  if (
-    intent == null ||
-    !intent.is_actionable ||
-    intent.confidence < LOW_BELOW
-  ) {
-    return "low";
-  }
-  if (
-    intent.confidence >= HIGH_FROM &&
-    intent.time_of_day != null &&
-    (intent.weekday != null || intent.day_offset != null)
-  ) {
+export function bandForScore(score: number): ConfidenceBand {
+  if (score >= HIGH_FROM) {
     return "high";
   }
-  return "medium";
+  if (score >= SHOW_FROM) {
+    return "medium";
+  }
+  return "ignored";
+}
+
+/**
+ * Buckets an extracted intent into a confidence band via `bandForScore`.
+ *
+ * A `null` intent, or one the extractor/`reconcileScore` marked
+ * non-actionable, is always "ignored" regardless of score — mirrors
+ * `reconcileScore`'s own `is_actionable = false` gate at `score <= 6`, and
+ * covers the case where the model itself set `is_actionable: false` on a
+ * higher-scoring but wrong-fit intent.
+ *
+ * @param intent - The extracted intent for this message, or `null` when
+ *   extraction returned nothing.
+ * @returns The confidence band per `bandForScore`, or "ignored" for no
+ *   intent / non-actionable.
+ */
+export function bucketConfidence(intent: LocatedIntent | null): ConfidenceBand {
+  if (intent == null || !intent.is_actionable) {
+    return "ignored";
+  }
+  return bandForScore(intent.score);
 }
 
 /** The graph's shared state, threaded through every node. */
@@ -68,7 +79,7 @@ export const AgentState = Annotation.Root({
   }),
   band: Annotation<ConfidenceBand>({
     reducer: (_, next) => next,
-    default: () => "low",
+    default: () => "ignored",
   }),
   reason: Annotation<string>({
     reducer: (_, next) => next,
@@ -127,7 +138,7 @@ export function classifyNode(
   const band = bucketConfidence(state.intent);
   const reason =
     state.intent != null
-      ? `${band} confidence ${state.intent.confidence.toFixed(2)}: ${state.intent.reason}`
+      ? `${band} score ${state.intent.score}/10: ${state.intent.reason}`
       : state.reason || "no scheduling intent extracted";
   return { band, reason };
 }
@@ -407,9 +418,9 @@ async function buildParticipantRows(
 /**
  * The compiled 5-node confidence-gate graph (D-01). Five `addNode` calls,
  * `extract -> classify` unconditionally, a conditional edge from `classify`
- * to `END` on low band or onward to `resolveTime -> checkConflicts ->
- * propose -> END` on high/medium. Compiled with zero arguments: no
- * checkpointer (D-01).
+ * to `END` on an ignored band (score <= 6) or onward to `resolveTime ->
+ * checkConflicts -> propose -> END` on high/medium (score >= 7). Compiled
+ * with zero arguments: no checkpointer (D-01).
  */
 export const agentGraph = new StateGraph(AgentState)
   .addNode("extract", extractNode)
@@ -420,7 +431,7 @@ export const agentGraph = new StateGraph(AgentState)
   .addEdge(START, "extract")
   .addEdge("extract", "classify")
   .addConditionalEdges("classify", (s) =>
-    s.band === "low" ? END : "resolveTime",
+    s.band === "ignored" ? END : "resolveTime",
   )
   .addEdge("resolveTime", "checkConflicts")
   .addEdge("checkConflicts", "propose")
@@ -430,9 +441,9 @@ export const agentGraph = new StateGraph(AgentState)
 /**
  * Runs the compiled confidence-gate graph for one Slack message end to end,
  * then writes the single Decision row for the run (Orchestrator correction
- * #3, D-16/D-17/D-18) — every branch, including low band, gets exactly one
- * Decision. A thrown run writes no Decision; a Trigger.dev retry writes it
- * on the retried attempt.
+ * #3, D-16/D-17/D-18) — every branch, including the ignored band, gets
+ * exactly one Decision. A thrown run writes no Decision; a Trigger.dev
+ * retry writes it on the retried attempt.
  *
  * Redelivery-safe (AGT-09, D-18): a pre-check on `team_id`/`source_channel`/
  * `source_ts` returns a finished run's ids with no model call and no graph
