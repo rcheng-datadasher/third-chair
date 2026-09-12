@@ -27,6 +27,7 @@ import {
   postGraphPreference,
 } from "./graph-preferences";
 import { findClash } from "./overlap";
+import { preferenceBlocks } from "./preference-blocks";
 
 /** The three confidence bands `classifyNode` routes on (D-01/D-02/AGT-08). */
 export type ConfidenceBand = "high" | "medium" | "ignored";
@@ -98,6 +99,11 @@ export const AgentState = Annotation.Root({
   conflicts: Annotation<ConflictSlot[]>({
     reducer: (_, next) => next,
     default: () => [],
+  }),
+  /** The author's learned preferences from Graphiti (Phase 9), fetched once in `checkConflictsNode`; `null` when unknown. */
+  preferences: Annotation<Record<string, unknown> | null>({
+    reducer: (_, next) => next,
+    default: () => null,
   }),
   proposalId: Annotation<string | null>({
     reducer: (_, next) => next,
@@ -259,20 +265,27 @@ export async function checkConflictsNode(
   const durationMinutes = intent.duration_minutes ?? DEFAULT_DURATION_MINUTES;
   const end = new Date(start.getTime() + durationMinutes * 60_000);
 
-  const { busy } = await collectBusyBlocks({
-    teamId: message.teamId,
-    requestedStart: start,
-    requestedEnd: end,
-  });
+  const [{ busy: calendarBusy }, preferences] = await Promise.all([
+    collectBusyBlocks({
+      teamId: message.teamId,
+      requestedStart: start,
+      requestedEnd: end,
+    }),
+    fetchGraphPreferences(message.userId),
+  ]);
+  // The author's learned preferences count as busy time (Phase 9): a
+  // request on a no-meeting day or outside working hours clashes like a
+  // calendar block does, and the human decides on the conflict card.
+  const busy = [...calendarBusy, ...preferenceBlocks(preferences, start)];
 
   const clash = findClash(start, end, busy);
   console.log(
     clash
-      ? `[conflict] clash found against ${summarizeClash(clash)}`
+      ? `[conflict] clash found against ${summarizeClash(clash)} (${clash.reason})`
       : "[conflict] clash none",
   );
 
-  return { conflicts: busy };
+  return { conflicts: busy, preferences };
 }
 
 /**
@@ -313,7 +326,7 @@ export async function proposeNode(
     }),
   );
 
-  const graphPrefs = await fetchGraphPreferences(message.userId);
+  const graphPrefs = state.preferences;
   const graphDefaultDuration =
     typeof graphPrefs?.default_meeting_duration === "number"
       ? graphPrefs.default_meeting_duration
@@ -377,7 +390,7 @@ export async function proposeNode(
       // variant with the alternatives variant when the model call succeeds.
       ({ channel, ts } = await postConflictCard(proposal, {
         kind: "warning",
-        clashSummary: summarizeClash(clash),
+        clashSummary: `${summarizeClash(clash)} (${clash.reason})`,
       }));
     } else {
       // High band gets the one-click approve/reject card; medium gets Edit &
