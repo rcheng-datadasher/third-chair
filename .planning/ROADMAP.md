@@ -638,7 +638,7 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
 
 **Plans**: 2 (suggested)
 
-- [ ] 11-01-PLAN.md
+- [x] 11-01-PLAN.md
 - [x] 11-02-PLAN.md
 
 - [ ] 11-01: Screen-record one clean run
@@ -660,7 +660,7 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
 | 8. [optional] S2 Commitment Ledger | 2/2 | In Progress|  |
 | 9. [optional] S1 Graphiti | 2/2 | In Progress|  |
 | 10. Seed-and-Rehearse | 1/2 | In Progress|  |
-| 11. Freeze-and-Record | 1/2 | In Progress|  |
+| 11. Freeze-and-Record | 2/2 | In Progress|  |
 
 ---
 *Roadmap created: 2026-09-11*
