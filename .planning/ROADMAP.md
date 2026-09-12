@@ -601,7 +601,7 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
 **Plans**: 2 (suggested)
 
 - [x] 10-01-PLAN.md
-- [ ] 10-02-PLAN.md
+- [x] 10-02-PLAN.md
 
 **Wave 1**
 

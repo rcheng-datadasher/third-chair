@@ -77,11 +77,11 @@ Every requirement's check is a hand check that takes under a minute. No requirem
 - [ ] **DSH-04**: The retro dark theme is defined once as shadcn CSS variables in `app/globals.css` (with `@theme inline` mappings for custom tokens); no component contains a colour literal
 - [ ] **DSH-05**: Retro devices applied consistently: 1–2px hard borders, `4px 4px 0` unblurred shadows, 2–4px radii, monospace for data/timestamps/confidence/chips with tabular numerals, uppercase micro-labels, status encoded in form (chip / left stripe / symbol) as well as colour
 - [ ] **DSH-06**: Amber and cyan pass contrast on the near-black ground, and every interactive element has a visible focus state
-- [ ] **DSH-07**: `/impeccable critique` + `polish` have been applied, and `/impeccable audit` has run on the running app before freeze
+- [x] **DSH-07**: `/impeccable critique` + `polish` have been applied, and `/impeccable audit` has run on the running app before freeze
 
 ### Demo and delivery (DMO)
 
-- [ ] **DMO-01**: `prisma/reset-demo.ts` clears demo DB rows and deletes tagged calendar events, so a repeated seeded message produces a fresh card
+- [x] **DMO-01**: `prisma/reset-demo.ts` clears demo DB rows and deletes tagged calendar events, so a repeated seeded message produces a fresh card
 - [ ] **DMO-02**: The demo conversation is seeded in the watched channel by hand, and the full flow (ignored chatter → Friday 11:00 proposal → approve → B's 10:30 ask → conflict alternatives) runs three times on `main`
 - [ ] **DMO-03**: One clean run is screen-recorded as the wifi fallback
 - [x] **DMO-04**: The final README covers every required section: the competitive comparison (Slackbot, Reclaim/Motion, Clockwise noted as shut down, Slack calendar apps, Fireflies/Otter/Spinach, n8n/Zapier, Relay.app noted as winding down); batch-first detection with the ~20× cost reasoning and why regex pre-filtering fails; multi-workspace via OAuth; the one-line `interrupt()` note; known shortcuts from `/ponytail-debt`; abandoned stretch work and why
@@ -200,8 +200,8 @@ Deferred. Tracked, not in the roadmap.
 | STR-01 | Phase 9 (optional) | Pending |
 | STR-02 | Phase 9 (optional) | Pending |
 | STR-03 | Phase 9 (optional) | Pending |
-| DSH-07 | Phase 10 | Pending |
-| DMO-01 | Phase 10 | Pending |
+| DSH-07 | Phase 10 | Complete |
+| DMO-01 | Phase 10 | Complete |
 | DMO-02 | Phase 10 | Pending |
 | DMO-03 | Phase 11 | Pending |
 | DMO-04 | Phase 11 | Complete |
