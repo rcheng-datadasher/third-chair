@@ -101,6 +101,14 @@ function QueryCommitmentsAction() {
  */
 export function LedgerSurface() {
   const [sessionKey, setSessionKey] = useState(0);
+  // @copilotkit/core 1.71 does `new URL(runtimeUrl)` with no base, so a
+  // relative path throws "Invalid URL" — resolve against the page origin.
+  // Falls back to the bare path during SSR; the browser value is what the
+  // runtime actually fetches with.
+  const runtimeUrl =
+    typeof window === "undefined"
+      ? "/api/copilotkit"
+      : new URL("/api/copilotkit", window.location.origin).href;
 
   return (
     <div className="flex h-full flex-col gap-2">
@@ -113,7 +121,7 @@ export function LedgerSurface() {
       </button>
       {/* Remounts the whole provider on a fresh key, starting a new chat
             session — the CopilotKit issue 3317 mitigation (08-RESEARCH Open Question 1). */}
-      <CopilotKit runtimeUrl="/api/copilotkit" key={sessionKey}>
+      <CopilotKit runtimeUrl={runtimeUrl} key={sessionKey}>
         <QueryCommitmentsAction />
         <CopilotChat
           labels={{
