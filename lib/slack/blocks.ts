@@ -34,46 +34,6 @@ export function buildApprovalBlocks(p: Pick<Proposal, "id" | "title">) {
 }
 
 /**
- * Builds the Block Kit body for a medium-confidence Proposal's card
- * (D-15): the same body `buildApprovalBlocks` renders, with its one-click
- * "Approve" button swapped for "Edit & approve" (`edit_approve_proposal`)
- * plus a "Reject" button. A medium-band proposal is never a single click
- * from the calendar — the human corrects it in the modal first (AGT-05).
- *
- * Consumes `buildApprovalBlocks` rather than duplicating its layout, so any
- * later change to the card's field set lands in both variants for free.
- *
- * @param p - The proposal to render, needing only `id` and `title`.
- * @returns Block Kit blocks array for `chat.postMessage`.
- */
-export function buildEditApproveBlocks(p: Pick<Proposal, "id" | "title">) {
-  const blocks = buildApprovalBlocks(p);
-  const hasActions = blocks.some((block) => block.type === "actions");
-  const editApproveActions = {
-    type: "actions",
-    elements: [
-      {
-        type: "button",
-        action_id: "edit_approve_proposal",
-        text: { type: "plain_text", text: "Edit & approve" },
-        style: "primary",
-        value: p.id,
-      },
-      {
-        type: "button",
-        action_id: "reject_proposal",
-        text: { type: "plain_text", text: "Reject" },
-        style: "danger",
-        value: p.id,
-      },
-    ],
-  };
-  return hasActions
-    ? blocks.map((block) => (block.type === "actions" ? editApproveActions : block))
-    : [...blocks, editApproveActions];
-}
-
-/**
  * Builds the Block Kit body for a confirmed Proposal's card — the same
  * section plus a static confirmed status chip, and no actions block.
  *

@@ -8,7 +8,6 @@ import type {
 import type { SlackMessage } from "../../types/slack";
 import { resolveStartIso } from "../../utils/time";
 import { prisma } from "../db";
-import { postEditApproveCard } from "../slack/post-edit-approve-card";
 import { postProposalCard } from "../slack/post-proposal-card";
 import { computeDedupeKey, normalizeIntent } from "./dedupe";
 import {
@@ -249,11 +248,7 @@ export async function proposeNode(
   // posting a card. Accepted for the demo's single-watched-channel volume;
   // upgrade path is a DB-level advisory lock or a conditional update.
   if (proposal.card_ts == null) {
-    // High band gets the one-click approve/reject card; medium gets Edit &
-    // approve — one call site, one poster selected by band (D-15).
-    const postCard =
-      state.band === "high" ? postProposalCard : postEditApproveCard;
-    const { channel, ts } = await postCard(proposal);
+    const { channel, ts } = await postProposalCard(proposal);
     proposal = await prisma.proposal.update({
       where: { id: proposal.id },
       data: { card_channel: channel, card_ts: ts },
