@@ -10,13 +10,13 @@ A Slack agent that reads ordinary conversation in a watched channel, decides on 
 message is an action item, and turns scheduling intents into **Proposals**. A proposal is a Block
 Kit approval card in Slack plus a row in a Next.js dashboard. Nothing is written to Google
 Calendar until the user approves.
-<!-- REFRESH-AT-FREEZE -->
-When a request clashes with the calendar, the agent is designed to propose two concrete alternative
-slots, each with a one-line stated reason. This conflict-counter-proposal path
-(Phase 7 of the build) is being integrated as this README is written; if the build window closes
-before it lands, the demo instead shows a static conflict warning naming the clashing block. See
-"Where a graph-level pause would fit" and "Abandoned stretch work" below for how the rest of the
-build's optional scope was handled under the same time pressure.
+When a request clashes with the calendar, the agent detects it for real — the requested slot is
+checked against Google `freebusy` for the organizer's whole working day (`+08:00` window) unioned
+with the team's still-pending proposals, using one half-open overlap predicate — and posts a
+**conflict warning card** that names the clashing block, with Approve and Reject still present.
+The two-reasoned-alternatives variant (one `MODEL_SMART` call, two "Choose" buttons) was designed
+and scoped but cut at the build's fixed 14:15 line; the static warning is the shipped conflict beat
+(CFL-05). See "Where a graph-level pause would fit" and "Abandoned stretch work" below.
 
 ## The core functionality
 
@@ -29,6 +29,11 @@ a row in the dashboard — and the agent never calls the Google Calendar API unt
 Approve. A confidence gate sits in front of both: high-confidence intents post the card directly,
 low-confidence non-actionable chatter is ignored silently (and recorded as a `Decision`, visible in
 the dashboard), so the agent is neither invisible nor noisy.
+
+On top of the core, a **per-person preference layer** shipped as stretch work: preference facts
+stated in ordinary messages ("no meetings on Fridays", "I work 10 to 6") are written to a Graphiti
+graph and read back by the scheduler as busy blocks, so a clash check honours what a person has
+said about their own time, not just their calendar.
 
 ## How it differs
 
@@ -254,43 +259,33 @@ paused graph.
 
 The list below splits into what a tool can verify mechanically and what only a person reviewing the
 design can judge.
-<!-- REFRESH-AT-FREEZE -->
-This is the literal, unedited output of running `/ponytail-debt` against this repository during
-this plan's execution window (in parallel with later build phases, ahead of the actual freeze) —
-the orchestrator re-runs it once more at the actual freeze point before the demo.
+This is the literal, unedited output of running `/ponytail-debt` against this repository at the
+freeze point (15:25 HKT, 12 Sep 2026), on the fully merged `main`.
 
 #### /ponytail-debt output (verbatim)
 
 ```text
-./lib/agent/graph.ts:247, read-then-post check for an existing Proposal card is not race-safe against two concurrent redeliveries of the same message both observing card_ts=null. ceiling: accepted for the demo's single-watched-channel volume. upgrade: a DB-level advisory lock or a conditional update.
+components/graph-view.tsx:32, ring layout for the preference graph. ceiling: readable only while node count stays small. upgrade: swap for a force layout if node count outgrows it.
 
-./.planning/phases/02-slack-surface/02-RESEARCH.md:490, in-process email-lookup cache cleared on restart, quoted in a planning doc rather than shipped as-is in this exact form. ceiling: cache lives only as long as the process; fine, the process runs once per demo. upgrade: none named. [no-trigger]
+lib/agent/conflict.ts:79, calendar owner resolved as the team's single user with a non-null google_refresh_token. ceiling: a two-user-demo assumption. upgrade: multi-organizer resolution.
+lib/agent/conflict.ts:92, a failed freebusy lookup is treated as an empty calendar so the demo path cannot die on a calendar outage. ceiling: a calendar outage looks like a free day. upgrade: none named beyond the loud log line as compensating control. [no-trigger]
 
-./.planning/phases/09-optional-s1-graphiti-preference-memory/09-01-PLAN.md:468, planning-doc instruction directing a future executor to write a `# ponytail:` marker on the Neo4j driver swap — Phase 9 has not been executed, so no such marker exists in shipped code yet. ceiling (as instructed): driver defaults, pool 100, acquisition timeout 60s. upgrade (as instructed): the client swap itself, or a Neo4jDriver subclass.
+lib/agent/graph.ts:378, read-then-post is not race-safe against two concurrent redeliveries both observing card_ts=null. ceiling: accepted for the demo's single-watched-channel volume. upgrade: a DB-level advisory lock or a conditional update.
+lib/agent/graph.ts:651, two deliveries in the same instant can both pass the pre-check and both write an ignored Decision. ceiling: single-watched-channel volume. upgrade: a unique (team_id, source_channel, source_ts) constraint on Decision.
 
-./.planning/phases/09-optional-s1-graphiti-preference-memory/09-01-PLAN.md:502, the matching acceptance criterion for the same not-yet-written driver-default marker above — also planning prose, not a shipped marker.
+lib/slack/bolt.ts:27, message shortcut registered by type, not callback_id. ceiling: exactly one message shortcut installed. upgrade: add callback_id once a second one exists.
 
-4 markers, 1 with no trigger.
+lib/slack/post-proposal-card.ts:142, first Decision per Proposal is taken as the Decision. ceiling: one Decision-per-Proposal. upgrade: revisit if more than one is ever linked.
+
+lib/slack/resolve-email.ts:3, in-process email cache cleared on restart. ceiling: a process that runs once per demo window. upgrade: a shared cache if Bolt must survive a restart mid-run.
+lib/slack/resolve-profile.ts:9, in-process profile cache, same shape as resolve-email.ts. ceiling: one demo window. upgrade: a shared cache only if this outlives a demo.
+
+utils/time.ts:107, missing time defaults to 10:00 and missing day to tomorrow. ceiling: first guesses, capped at "medium" confidence so the Edit & approve modal is where a human corrects them. upgrade: that modal, not a smarter default here.
+
+10 markers, 1 with no trigger.
 ```
 
 #### Other known shortcuts (design decisions, not ponytail markers)
-
-The grep pattern above only catches `#`/`//`-prefixed line comments; it silently misses a marker
-written as a TSDoc block-comment continuation line (`* ponytail: ...`), which matters here because
-this repo mandates TSDoc on every function. A broadened `git grep -n 'ponytail:' -- ':!*.md'` scan
-(run alongside the command above, over every tracked non-markdown file) confirms the under-report
-is real, not hypothetical — it surfaced two markers the default pattern missed:
-
-**Markers the default `/ponytail-debt` pattern missed (broadened scan, not in the verbatim fence
-above):**
-
-- `lib/agent/graph.ts:444` — two message redeliveries landing within the same instant can both
-  pass the pre-check read and both write an ignored `Decision` row. Accepted for the demo's
-  single-watched-channel volume; upgrade path is a unique `(team_id, source_channel, source_ts)`
-  constraint on `Decision`.
-- `utils/time.ts:107` — a relative-date hint missing a time defaults to 10:00, and one missing a
-  day defaults to tomorrow; `bucketConfidence` caps a hint missing either at "medium" so the Edit &
-  approve modal is where a human corrects it, rather than a smarter default in code.
 
 Design-level shortcuts accepted for this one-day, one-laptop build, none of which are marked with a
 `ponytail:` comment because they are documented decisions rather than code-level corner cuts: the
@@ -311,15 +306,17 @@ than finished late: **S1**, per-user preference memory via a self-hosted Graphit
 gated on the core demo being rehearsed and on Phase 7 (the conflict counter-proposal work above)
 finishing materially early; and **S2**, a CopilotKit generative-UI surface starting with a
 commitment ledger ("what you promised, what you're owed"), gated the same way.
-<!-- REFRESH-AT-FREEZE -->
-As written, at execution time: neither track has started. `git log` on `main` shows work through
-Phase 5 (the confidence-gated extraction graph) and partial Phase 6 (the dashboard layout and
-theme), with Phase 7's conflict-detection node still an unimplemented stub that always reports no
-conflicts (`lib/agent/graph.ts`, `checkConflictsNode`). The `gsd/phase-8-s2-commitment-ledger` and
-`gsd/phase-9-s1-graphiti` branches both point at the same commit as `main` — no commits ahead —
-confirming neither track has been touched. This is the "never started" outcome the plan for both
-tracks anticipated: each was gated on Phase 7's full dry run passing with room to spare, and the
-build's schedule had not opened that gate by the time this README was written. Both remain designed
-and scoped, not built. Abandoning cleanly here beats finishing either one late: unfinished stretch
-work merged onto `main` risks the core demo, and the core demo — not a stretch feature — is the
-deliverable that has to work on stage.
+Outcome at the freeze: **both stretch tracks shipped and are merged on `main`**, against the
+schedule's own expectation that they would be README-only. Neither waited for Phase 7's dry run —
+each ran in its own worktree beside the integration work once its inputs (the Phase 5 extraction
+schema and the Phase 6 dashboard) were on `main`, and merged only after passing its plan's own
+demo-ready gate. **S1 (Graphiti)**: preference facts are extracted from ordinary Slack messages and
+written to the Graphiti service, a live graph view at `/graph` shows per-user hubs with key=value
+facts, and the scheduler treats learned `no_meeting_days` / `working_hours` as busy blocks in the
+conflict check. **S2 (CopilotKit)**: a commitment ledger at `/commitments` renders one of four
+structurally different generative-UI components per row (chase, deadline chip, draft nudge, clarify
+card), chosen by a deterministic selector rather than the model, and a nudge goes out through the
+same approval card as every other action — never as a direct message. The thing that was actually
+cut is inside the core path, not the stretch: Phase 7's two-reasoned-alternatives conflict card
+(see "Core functionality") stopped at the fixed 14:15 line and shipped as the static warning
+instead.
