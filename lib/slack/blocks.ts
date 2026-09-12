@@ -1,4 +1,7 @@
 import type { Proposal } from "../../prisma/generated/client";
+import type { ModalView } from "@slack/types";
+import type { Participant } from "../../prisma/generated/client";
+import { hktDateParts } from "../../utils/time";
 
 /**
  * Builds the Block Kit body for a pending Proposal's approval card.
@@ -71,6 +74,98 @@ export function buildEditApproveBlocks(p: Pick<Proposal, "id" | "title">) {
   return hasActions
     ? blocks.map((block) => (block.type === "actions" ? editApproveActions : block))
     : [...blocks, editApproveActions];
+}
+
+/** `view_submission` callback id for the edit-proposal modal (D-15). */
+export const EDIT_APPROVE_MODAL_CALLBACK_ID = "edit_approve_proposal_modal";
+
+/**
+ * Builds the Block Kit `view` for the Edit & approve modal, prefilled from
+ * the live Proposal row (never from anything round-tripped through Slack).
+ *
+ * `private_metadata` carries exactly one key, `proposalId` (05-RESEARCH
+ * Pitfall C, "re-derive, don't resume") — the submission handler re-reads
+ * everything else from Postgres. Participants are shown read-only (Slack
+ * user ids only, never an email) — editing them is out of this plan's
+ * scope (Flagged assumptions).
+ *
+ * @param p - The proposal to render, with `participants` included.
+ * @returns A Block Kit `view` object for `client.views.open`.
+ */
+export function buildEditProposalModal(
+  p: Proposal & { participants: Participant[] },
+): ModalView {
+  const { isoDate, time } = hktDateParts(p.start);
+  const durationMinutes = Math.round(
+    (p.end.getTime() - p.start.getTime()) / 60_000,
+  );
+  // Slack user ids only — never an email, token or stored profile field
+  // (T-05-16). A participant with no Slack id (shouldn't happen in this
+  // demo's two-user path) is simply omitted rather than falling back to
+  // anything identifying.
+  const participantLabels = p.participants
+    .filter((participant) => participant.slack_user_id != null)
+    .map((participant) => `<@${participant.slack_user_id}>`);
+
+  return {
+    type: "modal",
+    callback_id: EDIT_APPROVE_MODAL_CALLBACK_ID,
+    private_metadata: JSON.stringify({ proposalId: p.id }),
+    title: { type: "plain_text", text: "Edit proposal" },
+    submit: { type: "plain_text", text: "Save & show approval" },
+    close: { type: "plain_text", text: "Cancel" },
+    blocks: [
+      {
+        type: "input",
+        block_id: "title_block",
+        label: { type: "plain_text", text: "Title" },
+        element: {
+          type: "plain_text_input",
+          action_id: "title_input",
+          initial_value: p.title,
+        },
+      },
+      {
+        type: "input",
+        block_id: "date_block",
+        label: { type: "plain_text", text: "Date (HKT)" },
+        element: {
+          type: "datepicker",
+          action_id: "date_input",
+          initial_date: isoDate,
+        },
+      },
+      {
+        type: "input",
+        block_id: "time_block",
+        label: { type: "plain_text", text: "Time (HKT)" },
+        element: {
+          type: "timepicker",
+          action_id: "time_input",
+          initial_time: time.slice(0, 5),
+        },
+      },
+      {
+        type: "input",
+        block_id: "duration_block",
+        label: { type: "plain_text", text: "Duration (minutes)" },
+        element: {
+          type: "plain_text_input",
+          action_id: "duration_input",
+          initial_value: String(durationMinutes),
+        },
+      },
+      {
+        type: "context",
+        elements: [
+          {
+            type: "mrkdwn",
+            text: `Participants: ${participantLabels.join(", ") || "none"}`,
+          },
+        ],
+      },
+    ],
+  };
 }
 
 /**
