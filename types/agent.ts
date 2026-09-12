@@ -1,3 +1,4 @@
+import type { ExtractedIntent } from "../lib/agent/extract-intents";
 import type { SlackMessage } from "./slack";
 
 /**
@@ -17,22 +18,12 @@ export interface RunAgentResult {
 }
 
 /**
- * One meeting/commitment intent extracted from a batch of Slack messages by
- * `extractIntents`. `messageIndex` maps back to the position of the source
- * message in the array passed in, which the caller maps back to a real
- * Slack `ts`.
+ * One meeting intent extracted from a batch of Slack messages. Re-exported
+ * from `lib/agent/extract-intents.ts` — the Zod-inferred schema type is the
+ * only `ExtractedIntent` definition in the repo (D-25); this file never
+ * forks it.
  */
-export interface ExtractedIntent {
-  messageIndex: number;
-  type: "meeting" | "commitment";
-  title: string;
-  startIso: string | null;
-  durationMinutes: number;
-  participantSlackIds: string[];
-  confidence: number;
-  isActionable: boolean;
-  reason?: string;
-}
+export type { ExtractedIntent };
 
 /**
  * One busy interval returned by `checkConflicts`, unioned from calendar
