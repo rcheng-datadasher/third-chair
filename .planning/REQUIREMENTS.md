@@ -59,7 +59,7 @@ Every requirement's check is a hand check that takes under a minute. No requirem
 - [ ] **AGT-08**: The extraction prompt carries a confidence rubric so sample messages visibly spread across high / medium / low
 - [ ] **AGT-09**: One Proposal per intent: `dedupe_key = sha256(team_id + channel_id + (thread_ts ?? message_ts) + normalized_intent)` (type + ISO start in 5-minute buckets + sorted participants); per-user `ActionItem` rows reference it
 - [ ] **AGT-10**: The agent is one LangGraph graph of at most five nodes (extract → classify → resolve time → check conflicts → propose), compiled with no checkpointer and invoked to completion per message. If the graph is still fighting back at the fixed decision time, it is replaced by the same node functions called in sequence
-- [ ] **AGT-11**: A Trigger.dev task (Node runtime) wraps `runAgent()` with an idempotency key from team + channel + ts, and posts the card with a plain `WebClient`
+- [x] **AGT-11**: A Trigger.dev task (Node runtime) wraps `runAgent()` with an idempotency key from team + channel + ts, and posts the card with a plain `WebClient`
 
 ### Conflict counter-proposal (CFL)
 
@@ -171,7 +171,7 @@ Deferred. Tracked, not in the roadmap.
 | APR-03 | Phase 4 | Pending |
 | APR-04 | Phase 4 | Pending |
 | APR-05 | Phase 4 | Pending |
-| AGT-11 | Phase 4 | Pending |
+| AGT-11 | Phase 4 | Complete |
 | AGT-01 | Phase 5 | Pending |
 | AGT-02 | Phase 5 | Pending |
 | AGT-03 | Phase 5 | Pending |

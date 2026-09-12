@@ -1,18 +1,18 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 01
-current_phase_name: Foundation + Hardcoded Round Trip
+current_phase: 11
+current_phase_name: Freeze-and-Record
 status: executing
-stopped_at: Completed 01-02-PLAN.md
-last_updated: "2026-09-12T04:07:00.238Z"
+stopped_at: Completed 10-01-PLAN.md
+last_updated: "2026-09-12T06:17:45.324Z"
 last_activity: 2026-09-12
-last_activity_desc: Phase 01 execution started
-state_head: ff929f08d3cf85ae0cfa20f03985a728ca60869b
+last_activity_desc: Phase 11 execution started
+state_head: d396c88497b67f94b468c6f609ca469eea0ad8b1
 progress:
   total_phases: 11
   completed_phases: 0
   total_plans: 26
-  completed_plans: 2
+  completed_plans: 10
   percent: 0
 ---
 
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-11)
 
 **Core value:** Unprompted intent detection with an approval gate — an ordinary Slack message becomes an approvable proposal and, after one click, a real Google Calendar event with a Meet link. Nobody invokes the agent, and nothing reaches the calendar without approval.
-**Current focus:** Phase 01 — Foundation + Hardcoded Round Trip
+**Current focus:** Phase 11 — Freeze-and-Record
 
 ## Current Position
 
-Phase: 01 (Foundation + Hardcoded Round Trip) — EXECUTING
-Plan: 3 of 3
+Phase: 11 (Freeze-and-Record) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-09-12 — Phase 01 execution started
+Last activity: 2026-09-12 — Phase 11 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -60,6 +60,8 @@ Progress: [░░░░░░░░░░] 0%
 |------|----------|-------|-------|
 | Phase 01 P01 | 35min | 3 tasks | 19 files |
 | Phase 01 P02 | 45 min | 3 tasks | 10 files |
+| Phase 10 P01 | 22min | 2 tasks | 1 files |
+| Phase 04 P02 | 25min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -75,6 +77,8 @@ Full decision log lives in PROJECT.md Key Decisions table (26 decisions, all "Pe
 - [Phase 01]: next.config.ts sets agentRules: false — Next.js 16 otherwise appends an agent-rules block to CLAUDE.md on every next dev boot
 - [Phase 01]: biome.json excludes public/** and connection_test/** in addition to D-23's three named exclusions, to keep the check-all gate green without touching out-of-scope files
 - [Phase 01]: Prisma 7.10.0 removes datasource url from schema.prisma entirely; connection strings live only in prisma.config.ts (CLI) and lib/db.ts's PrismaPg adapter (app)
+- [Phase 11]: [Phase 10-01] Reset script mirrors prisma/seed.ts relative import style (../lib/config, ../lib/db, ../lib/calendar/google-client) instead of @/lib/... alias; no additional Proposal-child model beyond ActionItem/Participant/Decision found in schema
+- [Phase 11]: 04-02: Task 3 (both-transports live hand-check, APR-05/D-17) deferred by human decision at 14:13 (speed cut); Task 1's trigger-side proof already live-verified, inline side deferred to 04-01 Task 2
 
 ### Pending Todos
 
@@ -96,6 +100,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-12T04:07:00.201Z
-Stopped at: Completed 01-02-PLAN.md
+Last session: 2026-09-12T06:02:08.835Z
+Stopped at: Completed 10-01-PLAN.md
 Resume file: None

@@ -359,13 +359,17 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
   5. `git status` after the first `trigger dev` run shows no untracked `package-lock.json`
 
 **Plans**: 2 (suggested)
+
+- [ ] 04-01-PLAN.md
+- [x] 04-02-PLAN.md
+
 **Wave 1**
 
 - [ ] 04-01: (R1 already merged to main) approve/reject handler + organizer claim + chat.update; Trigger.dev task imports the REAL Phase 5 graph
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 04-02: Trigger.dev task wrapper (AGT-11) + prismaExtension + AGENT_TRANSPORT flag verified both ways
+- [x] 04-02: Trigger.dev task wrapper (AGT-11) + prismaExtension + AGENT_TRANSPORT flag verified both ways
 
 ### Phase 5: Agent + Confidence Gate
 
@@ -623,7 +627,7 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
 | 1. Foundation + Hardcoded Round Trip | 1/3 | In Progress|  |
 | 2. Slack Surface | 0/2 | Not started | - |
 | 3. Calendar Client | 0/2 | Not started | - |
-| 4. Approval Bridge | 0/2 | Not started | - |
+| 4. Approval Bridge | 1/2 | In Progress|  |
 | 5. Agent + Confidence Gate | 0/3 | Not started | - |
 | 6. Dashboard | 0/3 | Not started | - |
 | 7. Integrate + Conflict Counter-Proposal | 0/3 | Not started | - |
