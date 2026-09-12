@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { z } from "zod";
 
 /**
@@ -5,6 +6,12 @@ import { z } from "zod";
  * This module is the repo's only direct reader of `process.env` (besides the
  * `NODE_ENV` check in `lib/db.ts`) — every other module imports `config`.
  * Not `server-only`: Bolt and Trigger.dev import this outside the RSC runtime.
+ *
+ * The `dotenv/config` side-effect import mirrors `prisma.config.ts`'s
+ * existing pattern (D-16 extend, never duplicate): bun auto-loads `.env`,
+ * but the Bolt `bunx tsx` runtime fallback (D-01) runs under Node, which
+ * does not. `dotenv` never overwrites an already-set var, so this is a
+ * no-op under bun/Next.js, which already populated `process.env`.
  */
 const envSchema = z.object({
   // Slack

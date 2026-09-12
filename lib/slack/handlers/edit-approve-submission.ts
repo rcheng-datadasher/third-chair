@@ -7,8 +7,9 @@ import type {
 import { z } from "zod";
 import { config } from "../../config";
 import { prisma } from "../../db";
-import { buildApprovalBlocks } from "../blocks";
+import { buildApprovalBlocks, buildFallbackText } from "../blocks";
 import { slackClient } from "../client";
+import { loadCardInput } from "../update-proposal-card";
 
 /**
  * Untrusted-input boundary (ASVS V5, D-28) for the four values submitted
@@ -113,17 +114,16 @@ export async function handleEditApproveSubmission({
     data: { title, start, end },
   });
 
-  // Re-render the same message in place — never post a second one. Phase
-  // 2's updateProposalCard always renders the confirmed chip (it has no
-  // `pending` branch in this branch's version), so this handler calls
-  // chat.update itself with buildApprovalBlocks (the fallback route the
-  // plan anticipated). Recorded in 05-03-SUMMARY.md.
+  // Re-render the same message in place — never post a second one. The
+  // proposal is still `pending` after an edit, so this renders the pending
+  // approve/reject card directly through the shared card input loader.
   if (updated.card_channel && updated.card_ts) {
+    const cardInput = await loadCardInput(updated);
     await slackClient.chat.update({
       channel: updated.card_channel,
       ts: updated.card_ts,
-      text: updated.title,
-      blocks: buildApprovalBlocks(updated),
+      text: buildFallbackText("pending", cardInput),
+      blocks: buildApprovalBlocks(cardInput),
     });
   } else {
     logger.warn(

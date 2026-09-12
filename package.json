@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "bolt": "bun lib/slack/bolt.ts",
+    "bolt": "bunx tsx lib/slack/bolt.ts",
     "db:push": "prisma db push",
     "db:seed": "bun prisma/seed.ts",
     "db:studio": "bunx prisma studio",
