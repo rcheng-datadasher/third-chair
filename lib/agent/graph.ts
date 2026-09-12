@@ -467,8 +467,12 @@ async function resolveParticipantIds(
   message: SlackMessage,
   namedIds: string[],
 ): Promise<string[]> {
-  if (namedIds.length > 0) {
-    return [...new Set([message.userId, ...namedIds])].sort();
+  // The author is the organizer, never a "named" invitee — the model tends to
+  // echo the author's own <@id> from the rendered line, which must not
+  // suppress the default-invite path.
+  const named = namedIds.filter((id) => id !== message.userId);
+  if (named.length > 0) {
+    return [...new Set([message.userId, ...named])].sort();
   }
 
   try {
@@ -494,9 +498,9 @@ async function resolveParticipantIds(
 /**
  * Resolves an email for each participant Slack id (skipping ids with no
  * resolvable email — Participant.email is required) and builds the nested
- * `Participant` create rows, role mirrored from `prisma/seed.ts`: the
- * message author is "attendee" (Phase 1 precedent), everyone else is
- * "invitee" (seed precedent).
+ * `Participant` create rows: the message author is the "organizer" (the card
+ * renders that label from the role), everyone else is an "invitee" with a
+ * null response, which the card renders as "pending invite".
  *
  * @param teamId - Slack team id.
  * @param authorSlackId - The triggering message's author Slack id.
@@ -536,7 +540,7 @@ async function buildParticipantRows(
       user_id: user?.id,
       slack_user_id: slackUserId,
       email,
-      role: slackUserId === authorSlackId ? "attendee" : "invitee",
+      role: slackUserId === authorSlackId ? "organizer" : "invitee",
     });
   }
   return rows;

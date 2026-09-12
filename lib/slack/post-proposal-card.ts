@@ -77,7 +77,8 @@ export async function loadCardParticipants(
     .map((participant) => ({
       slackUserId: participant.slack_user_id as string,
       state:
-        participant.slack_user_id === proposal.organizer_user_id
+        participant.slack_user_id === proposal.organizer_user_id ||
+        participant.role === "organizer"
           ? "organizer"
           : (participant.response ?? "pending invite"),
     }));
