@@ -56,6 +56,14 @@ services:
       GRAPHITI_LLM_MODEL: ${GRAPHITI_LLM_MODEL:-${MODEL_FAST:-}}
       GRAPHITI_EMBEDDING_MODEL: ${GRAPHITI_EMBEDDING_MODEL:-}
       GRAPHITI_TELEMETRY_ENABLED: "false"
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/preferences?user_id=healthcheck', timeout=4)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
 volumes:
   postgres_data:
