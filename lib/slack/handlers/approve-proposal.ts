@@ -8,11 +8,17 @@ import { updateProposalCard } from "../update-proposal-card";
 
 /**
  * Handles the "Approve" button click on a Proposal card: acknowledges
- * immediately, resolves the proposal from the button's own value, marks it
- * confirmed, and updates the card in place using the channel/ts stored on
- * the Proposal row (never the identifiers carried in the click payload,
- * which can drift — D-02).
+ * immediately, resolves the proposal from the button's own value,
+ * conditionally marks it confirmed (only from `pending`, so a double click
+ * or a race with Reject is a no-op), and updates the card in place using
+ * the channel/ts stored on the Proposal row (never the identifiers carried
+ * in the click payload, which can drift — D-11).
  *
+ * @param args - Bolt's block-action middleware args.
+ * @param args.ack - Bolt's ack function; must be called first (D-07).
+ * @param args.body - The raw block_actions payload.
+ * @returns Resolves once the proposal is transitioned (or found already
+ *   decided) and, when transitioned, the card is updated.
  * @throws never — every failure path returns quietly or is logged; Slack
  *   must not see a thrown error from an action handler.
  */
@@ -32,18 +38,24 @@ export async function handleApproveProposal({
   });
   if (!proposal) return;
 
-  const updated = await prisma.proposal.update({
-    where: { id: proposalId },
+  // Conditional transition: only a proposal still `pending` can be approved,
+  // so a double click or a race with Reject leaves the first chip in place.
+  const { count } = await prisma.proposal.updateMany({
+    where: { id: proposalId, status: "pending" },
     data: { status: "confirmed" },
   });
-
-  if (!updated.card_channel || !updated.card_ts) {
-    console.error(
-      `approve-proposal: proposal ${proposalId} has no stored card location`,
+  if (count === 0) {
+    console.log(
+      `already decided proposal_id=${proposalId} status=${proposal.status}`,
     );
     return;
   }
 
-  // Use the STORED card location (D-02), never the click payload's own identifiers.
-  await updateProposalCard(updated.card_channel, updated.card_ts, updated);
+  console.log(`proposal approved proposal_id=${proposalId} status=confirmed`);
+  // Spread the pre-update row with its NEW status — passing the row as read
+  // (still `pending`) would re-render the approval card with buttons intact.
+  await updateProposalCard(proposal.card_channel, proposal.card_ts, {
+    ...proposal,
+    status: "confirmed",
+  });
 }
