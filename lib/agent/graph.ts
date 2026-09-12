@@ -17,6 +17,11 @@ import {
   extractIntents,
   type LocatedIntent,
 } from "./extract-intents";
+import { extractPreferences } from "./extract-preferences";
+import {
+  fetchGraphPreferences,
+  postGraphPreference,
+} from "./graph-preferences";
 
 /** The three confidence bands `classifyNode` routes on (D-01/D-02/AGT-08). */
 export type ConfidenceBand = "high" | "medium" | "ignored";
@@ -93,6 +98,11 @@ export const AgentState = Annotation.Root({
     reducer: (_, next) => next,
     default: () => null,
   }),
+  /** Closed-vocabulary preference keys `learnPreferencesNode` wrote to Graphiti on this run (Phase 9, S1). */
+  learnedPreferenceKeys: Annotation<string[]>({
+    reducer: (_, next) => next,
+    default: () => [],
+  }),
   /** True when `proposeNode` recovered an existing Proposal via a P2002 dedupe collision, rather than creating a new one. */
   replayed: Annotation<boolean>({
     reducer: (_, next) => next,
@@ -122,6 +132,33 @@ export async function extractNode(
   const located = await extractIntents([state.message], { now: state.now });
   const intent = located.find((i) => i.ts === state.message.ts) ?? null;
   return { intent };
+}
+
+/**
+ * Learns standing scheduling preferences from the message (Phase 9, S1):
+ * distils it into closed-vocabulary facts and writes each to the Graphiti
+ * service under the author's Slack id. Runs beside `extractNode` off
+ * `START`, so a preference sentence and a scheduling request in the same
+ * message are both honoured, and a down service costs nothing (writes fail
+ * closed). A blank message skips the model call.
+ *
+ * @param state - Current graph state.
+ * @returns A partial state update listing the keys the service accepted.
+ */
+export async function learnPreferencesNode(
+  state: typeof AgentState.State,
+): Promise<Partial<typeof AgentState.State>> {
+  if (state.message.text.trim() === "") {
+    return { learnedPreferenceKeys: [] };
+  }
+  const facts = await extractPreferences(state.message.text);
+  const learnedPreferenceKeys: string[] = [];
+  for (const fact of facts) {
+    if (await postGraphPreference(state.message.userId, fact)) {
+      learnedPreferenceKeys.push(fact.key);
+    }
+  }
+  return { learnedPreferenceKeys };
 }
 
 /**
@@ -214,9 +251,17 @@ export async function proposeNode(
     }),
   );
 
+  const graphPrefs = await fetchGraphPreferences(message.userId);
+  const graphDefaultDuration =
+    typeof graphPrefs?.default_meeting_duration === "number"
+      ? graphPrefs.default_meeting_duration
+      : null;
+
   const start = new Date(validated.start_iso ?? intent.start_iso);
   const durationMinutes =
-    validated.duration_minutes ?? DEFAULT_DURATION_MINUTES;
+    validated.duration_minutes ??
+    graphDefaultDuration ??
+    DEFAULT_DURATION_MINUTES;
   const end = new Date(start.getTime() + durationMinutes * 60_000);
 
   const participantRows = await buildParticipantRows(
@@ -416,7 +461,8 @@ async function buildParticipantRows(
 }
 
 /**
- * The compiled 5-node confidence-gate graph (D-01). Five `addNode` calls,
+ * The compiled confidence-gate graph (D-01): the five original nodes plus
+ * `learnPreferences` fanned out from `START` (Phase 9, S1). Six `addNode` calls,
  * `extract -> classify` unconditionally, a conditional edge from `classify`
  * to `END` on an ignored band (score <= 6) or onward to `resolveTime ->
  * checkConflicts -> propose -> END` on high/medium (score >= 7). Compiled
@@ -428,7 +474,10 @@ export const agentGraph = new StateGraph(AgentState)
   .addNode("resolveTime", resolveTimeNode)
   .addNode("checkConflicts", checkConflictsNode)
   .addNode("propose", proposeNode)
+  .addNode("learnPreferences", learnPreferencesNode)
   .addEdge(START, "extract")
+  .addEdge(START, "learnPreferences")
+  .addEdge("learnPreferences", END)
   .addEdge("extract", "classify")
   .addConditionalEdges("classify", (s) =>
     s.band === "ignored" ? END : "resolveTime",
