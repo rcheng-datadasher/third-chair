@@ -1,8 +1,14 @@
 import { z } from "zod";
 import { config } from "@/lib/config";
+import { resolveProfile } from "@/lib/slack/resolve-profile";
 
-/** One node of the Graphiti graph as rendered by the dashboard. */
-export type GraphNode = { id: string; label: string; name: string };
+/** One node of the Graphiti graph as rendered by the dashboard; `detail` is an optional second line (a user's nickname and id). */
+export type GraphNode = {
+  id: string;
+  label: string;
+  name: string;
+  detail?: string;
+};
 
 /** One directed edge of the Graphiti graph. */
 export type GraphEdge = { source: string; target: string; type: string };
@@ -76,10 +82,12 @@ function factName(content: string): string {
 
 /**
  * Reads the whole Graphiti graph for the dashboard's graph view. Each Slack
- * user (Graphiti `group_id`) becomes a hub node with a `STATED` edge to
- * every preference episode they own, so the preference memory reads as a
- * graph even before Graphiti has extracted entities from the facts; any
- * real Entity/Community nodes and relationships are drawn as well.
+ * user (Graphiti `group_id`) becomes a hub node — named from their Slack
+ * profile (full name, with nickname and id as the detail line) when the id
+ * resolves, else the raw id — with a `STATED` edge to every preference
+ * episode they own, so the preference memory reads as a graph even before
+ * Graphiti has extracted entities from the facts; any real Entity/Community
+ * nodes and relationships are drawn as well.
  *
  * @returns Nodes and edges; both empty when Neo4j holds nothing yet.
  * @throws Propagates {@link runCypher} failures.
@@ -92,15 +100,22 @@ export async function readGraph(): Promise<GraphSnapshot> {
   ]);
   const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
-  const users = new Set<string>();
+  const userIds = [...new Set(episodes.map(([, userId]) => userId))];
+  const profiles = await Promise.all(userIds.map(resolveProfile));
+  userIds.forEach((userId, i) => {
+    const p = profiles[i];
+    nodes.push({
+      id: `user:${userId}`,
+      label: "User",
+      name: p?.name ?? userId,
+      detail: p
+        ? [p.nickname && `@${p.nickname}`, userId].filter(Boolean).join(" · ")
+        : undefined,
+    });
+  });
   for (const [id, userId, content] of episodes) {
-    const hub = `user:${userId}`;
-    if (!users.has(userId)) {
-      users.add(userId);
-      nodes.push({ id: hub, label: "User", name: userId });
-    }
     nodes.push({ id, label: "Episodic", name: factName(content) });
-    edges.push({ source: hub, target: id, type: "STATED" });
+    edges.push({ source: `user:${userId}`, target: id, type: "STATED" });
   }
   for (const [id, label, name] of others) {
     nodes.push({ id, label: label || "Node", name });

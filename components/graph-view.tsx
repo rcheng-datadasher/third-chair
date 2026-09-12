@@ -143,6 +143,16 @@ export function GraphView({ initialData }: { initialData: GraphSnapshot }) {
               >
                 {n.name.length > 30 ? `${n.name.slice(0, 28)}…` : n.name}
               </text>
+              {n.detail && (
+                <text
+                  x={p.x}
+                  y={p.y + 38}
+                  className="fill-muted-foreground font-mono text-[8px]"
+                  textAnchor="middle"
+                >
+                  {n.detail}
+                </text>
+              )}
             </g>
           );
         })}

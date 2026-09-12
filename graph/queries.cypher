@@ -49,3 +49,9 @@ ORDER BY e.created_at ASC;
 // deletes the whole graph. Use this to restore an empty "before" state if a
 // rehearsal run has already polluted the partition.
 MATCH (n {group_id: $user_id}) DETACH DELETE n;
+
+// 5. DEMO CLEANUP — remove test-fixture users (09-01's probe/tracer and the
+// extractor self-check) so only real Slack users remain on the canvas.
+// Deleting a group's Episodic nodes also drops any Entity/Community nodes
+// Graphiti scoped to that group_id.
+MATCH (n) WHERE n.group_id IN ['probe', 'tracer', 'UPREFTEST'] DETACH DELETE n;
