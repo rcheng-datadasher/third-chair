@@ -1,8 +1,9 @@
-import { App } from "@slack/bolt";
-import type { SlackMessage } from "../../types/slack";
-import { dispatchAgentRun } from "../agent/dispatch";
+import { App, type MessageShortcut } from "@slack/bolt";
 import { config } from "../config";
-import { handleApproveProposal } from "./actions/approve-proposal";
+import { handleAppMention } from "./handlers/app-mention";
+import { handleApproveProposal } from "./handlers/approve-proposal";
+import { handleExtractShortcut } from "./handlers/extract-shortcut";
+import { handleSecretaryCommand } from "./handlers/secretary-command";
 import { handleWatchedChannelMessage } from "./handlers/watched-channel-message";
 
 /**
@@ -17,20 +18,16 @@ const app = new App({
   socketMode: true,
 });
 
-app.event("app_mention", async ({ event }) => {
-  const message: SlackMessage = {
-    teamId: config.slack.teamId,
-    channelId: event.channel,
-    ts: event.ts,
-    threadTs: event.thread_ts,
-    userId: event.user ?? "",
-    text: event.text,
-  };
-  await dispatchAgentRun({ message });
-});
-
-app.action("approve_proposal", handleApproveProposal);
 app.message(handleWatchedChannelMessage);
+app.event("app_mention", handleAppMention);
+// ponytail: registered by shortcut type, not callback_id — the app installs
+// exactly one message shortcut. Add callback_id once a second one exists.
+app.shortcut<MessageShortcut>(
+  { type: "message_action" },
+  handleExtractShortcut,
+);
+app.command("/secretary", handleSecretaryCommand);
+app.action("approve_proposal", handleApproveProposal);
 
 (async () => {
   await app.start();
