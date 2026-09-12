@@ -12,10 +12,16 @@ export default async function Home() {
   await connection();
   const rows = await getProposalRows();
   return (
-    <main className="flex flex-col gap-4 p-6">
-      <h1 className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
-        Proposal queue
-      </h1>
+    <main className="mx-auto flex w-full max-w-[1440px] flex-col gap-6 px-8 pt-10 pb-16">
+      <header className="flex flex-col gap-1.5">
+        <h1 className="text-3xl font-semibold tracking-tight">
+          Proposal queue
+        </h1>
+        <p className="text-base text-muted-foreground">
+          Every meeting the agent has proposed from Slack, newest first.
+          Approval happens on the Slack card, not here.
+        </p>
+      </header>
       <ProposalQueue initialData={rows} />
     </main>
   );
