@@ -487,14 +487,19 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
   4. `/ponytail-review` has been run on the merged diff before this phase is marked done
 
 **Plans**: 3 (suggested; plan 3 optional)
+
+- [x] 07-01-PLAN.md
+- [x] 07-02-PLAN.md
+- [ ] 07-03-PLAN.md
+
 **Wave 1**
 
-- [ ] 07-01: (R2 already merged to main) full-path dry run Slack→graph→card→approve→calendar + LangGraph keep-or-rip checkpoint
+- [x] 07-01: (R2 already merged to main) full-path dry run Slack→graph→card→approve→calendar + LangGraph keep-or-rip checkpoint
 - [ ] 07-03 (optional, only if ahead): `/secretary scan` (OPT-01)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 07-02: Conflict counter-proposal (CFL-01..05) or degraded static warning if past 14:15
+- [x] 07-02: Conflict counter-proposal (CFL-01..05) or degraded static warning if past 14:15
 
 ### Phase 8: [optional] S2 — Commitment Ledger
 
@@ -651,7 +656,7 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
 | 4. Approval Bridge | 2/2 | Complete | 2026-09-12 |
 | 5. Agent + Confidence Gate | 3/3 | In Progress|  |
 | 6. Dashboard | 0/3 | Not started | - |
-| 7. Integrate + Conflict Counter-Proposal | 0/3 | Not started | - |
+| 7. Integrate + Conflict Counter-Proposal | 2/3 | In Progress|  |
 | 8. [optional] S2 Commitment Ledger | 2/2 | In Progress|  |
 | 9. [optional] S1 Graphiti | 2/2 | In Progress|  |
 | 10. Seed-and-Rehearse | 1/2 | In Progress|  |

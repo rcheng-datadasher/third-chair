@@ -85,7 +85,7 @@ Every requirement's check is a hand check that takes under a minute. No requirem
 - [ ] **DMO-02**: The demo conversation is seeded in the watched channel by hand, and the full flow (ignored chatter → Friday 11:00 proposal → approve → B's 10:30 ask → conflict alternatives) runs three times on `main`
 - [ ] **DMO-03**: One clean run is screen-recorded as the wifi fallback
 - [x] **DMO-04**: The final README covers every required section: the competitive comparison (Slackbot, Reclaim/Motion, Clockwise noted as shut down, Slack calendar apps, Fireflies/Otter/Spinach, n8n/Zapier, Relay.app noted as winding down); batch-first detection with the ~20× cost reasoning and why regex pre-filtering fails; multi-workspace via OAuth; the one-line `interrupt()` note; known shortcuts from `/ponytail-debt`; abandoned stretch work and why
-- [ ] **DMO-05**: Each merge window ends with `/ponytail-review` on the diff before the track merges into `develop`
+- [x] **DMO-05**: Each merge window ends with `/ponytail-review` on the diff before the track merges into `develop`
 
 ### Optional core (OPT): build only if the core demo is done
 
@@ -193,7 +193,7 @@ Deferred. Tracked, not in the roadmap.
 | CFL-03 | Phase 7 | Pending |
 | CFL-04 | Phase 7 | Pending |
 | CFL-05 | Phase 7 | Pending |
-| DMO-05 | Phase 7 | Pending |
+| DMO-05 | Phase 7 | Complete |
 | OPT-01 | Phase 7 | Pending |
 | STR-04 | Phase 8 (optional) | Pending |
 | STR-05 | Phase 8 (optional) | Pending |
