@@ -66,3 +66,35 @@ export async function fetchGraphPreferences(
     return null;
   }
 }
+
+/**
+ * Writes one distilled preference fact to the Graphiti service as an episode
+ * (`POST /episodes`). Mirrors {@link fetchGraphPreferences}'s fail-closed
+ * contract: unset config, a slow/unreachable service or a non-ok status all
+ * return `false` and never throw, so learning a preference can never break
+ * the scheduling run it rides along with.
+ *
+ * @param userId - The Slack user id the fact belongs to (Graphiti `group_id`).
+ * @param fact - A closed-vocabulary `{ key, value }` pair, already validated
+ *   by `PreferenceFactSchema` in `extract-preferences.ts`.
+ * @returns `true` when the service accepted the episode.
+ */
+export async function postGraphPreference(
+  userId: string,
+  fact: { key: string; value: string | number | string[] },
+): Promise<boolean> {
+  if (!config.graph.serviceUrl) {
+    return false;
+  }
+  try {
+    const res = await fetch(`${config.graph.serviceUrl}/episodes`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ user_id: userId, ...fact }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
