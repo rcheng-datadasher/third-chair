@@ -1,22 +1,24 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import {
+  EmptyRow,
+  GRID_CELL,
+  GRID_HEAD,
+  GridFrame,
+  NewMarker,
+} from "@/components/data-grid";
 import { FeedStatus } from "@/components/feed-status";
 import { StatusChip } from "@/components/status-chip";
-import { Card } from "@/components/ui/card";
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useNewRows } from "@/hooks/use-new-rows";
 import type { ProposalRow } from "@/lib/dashboard/queries";
-
-const HEAD =
-  "h-11 px-4 font-mono text-xs font-medium uppercase tracking-widest text-muted-foreground";
-const CELL = "px-4 py-3.5";
 
 /**
  * Fetches the proposal poll endpoint.
@@ -32,60 +34,70 @@ async function fetchProposals(): Promise<ProposalRow[]> {
 
 /**
  * Read-only proposal queue that polls every 4 s, including in background tabs.
- * Title carries the row; status, start and confidence are fixed-width metadata.
+ * Column grammar shared with the Decision log: chip, primary text, time,
+ * confidence. Rows that arrive between polls carry a one-cycle NEW marker.
  *
  * @param props - Component props.
  * @param props.initialData - Server-rendered rows for the first paint.
- * @returns The queue table with its status strip.
+ * @returns The status strip and the scrollable grid.
  */
 export function ProposalQueue({ initialData }: { initialData: ProposalRow[] }) {
-  const { data, isError } = useQuery({
+  const { data, isError, isFetched, dataUpdatedAt } = useQuery({
     queryKey: ["proposals"],
     queryFn: fetchProposals,
     initialData,
     refetchInterval: 4000,
     refetchIntervalInBackground: true,
   });
+  const fresh = useNewRows(data);
 
   return (
-    <section className="flex flex-col gap-3">
-      <FeedStatus count={data.length} noun="proposal" isError={isError} />
-      <Card className="rounded-sm border p-0 text-base shadow-retro ring-0">
-        <Table className="table-fixed">
+    <section className="flex min-h-0 flex-1 flex-col gap-3">
+      <FeedStatus
+        count={data.length}
+        noun="proposal"
+        isError={isError}
+        updatedAt={isFetched ? dataUpdatedAt : null}
+      />
+      <GridFrame>
+        <table className="w-full min-w-[880px] table-fixed border-separate border-spacing-0 text-base">
+          <caption className="sr-only">
+            Proposals extracted from Slack, newest first
+          </caption>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead className={`${HEAD} w-44`}>Status</TableHead>
-              <TableHead className={HEAD}>Title</TableHead>
-              <TableHead className={`${HEAD} w-64`}>Start (HKT)</TableHead>
-              <TableHead className={`${HEAD} w-36 text-right`}>
+              <TableHead className={`${GRID_HEAD} w-44`}>Status</TableHead>
+              <TableHead className={GRID_HEAD}>Title</TableHead>
+              <TableHead className={`${GRID_HEAD} w-64`}>Start (HKT)</TableHead>
+              <TableHead className={`${GRID_HEAD} w-36 text-right`}>
                 Confidence
               </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {data.length === 0 ? (
-              <TableRow className="hover:bg-transparent">
-                <TableCell
-                  colSpan={4}
-                  className={`${CELL} py-12 text-center font-mono text-sm uppercase tracking-widest text-muted-foreground`}
-                >
-                  No proposals yet
-                </TableCell>
-              </TableRow>
+              <EmptyRow colSpan={4}>No proposals yet</EmptyRow>
             ) : (
               data.map((row) => (
-                <TableRow key={row.id} data-status={row.status}>
-                  <TableCell className={CELL}>
+                <TableRow
+                  key={row.id}
+                  data-status={row.status}
+                  data-new={fresh.has(row.id) || undefined}
+                >
+                  <TableCell className={`${GRID_CELL} whitespace-nowrap`}>
                     <StatusChip status={row.status} />
+                    {fresh.has(row.id) && <NewMarker />}
                   </TableCell>
-                  <TableCell className={`${CELL} truncate font-medium`}>
+                  <TableCell className={`${GRID_CELL} font-medium`}>
                     {row.title}
                   </TableCell>
-                  <TableCell className={`${CELL} font-mono tabular-nums`}>
+                  <TableCell
+                    className={`${GRID_CELL} whitespace-nowrap font-mono tabular-nums`}
+                  >
                     {row.startHkt}
                   </TableCell>
                   <TableCell
-                    className={`${CELL} text-right font-mono tabular-nums`}
+                    className={`${GRID_CELL} text-right font-mono tabular-nums`}
                   >
                     {row.confidence === null ? "—" : row.confidence.toFixed(2)}
                   </TableCell>
@@ -93,8 +105,8 @@ export function ProposalQueue({ initialData }: { initialData: ProposalRow[] }) {
               ))
             )}
           </TableBody>
-        </Table>
-      </Card>
+        </table>
+      </GridFrame>
     </section>
   );
 }

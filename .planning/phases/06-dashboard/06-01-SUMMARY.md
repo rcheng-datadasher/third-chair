@@ -25,7 +25,7 @@ requirements: [DSH-01, DSH-02, DSH-03]
 
 ## Deviation
 - Added `--success` / `--success-foreground` to `app/globals.css` (`:root`, `.dark`, `@theme inline`) so the chip's `bg-success` class exists. 06-02 re-values it with the retro palette.
-- Font: `@theme inline` maps `--font-sans: var(--font-sans)` but the scaffold only defines `--font-geist-sans`, so body text falls back to serif. Left for 06-02's typeset step (one-line fix: `--font-sans: var(--font-geist-sans)`).
+- Font: the scaffold mapped `--font-sans` to an undefined variable (serif fallback). Resolved in 06-02 with Inter / JetBrains Mono.
 
 ## Task 3 layout pass
 No impeccable skill is exposed in this session, so no `/impeccable layout` call was made. Applied by hand within the time box: page shell (`main` p-6, gap-4), uppercase mono micro-label headings, mono tabular numerals on time/confidence, right-aligned confidence, `max-w-md` wrapped reason, `max-w-xs` CSS-truncated message. Declined: nothing else proposed. Verified at 1280×720 — no overflow.
@@ -33,4 +33,4 @@ No impeccable skill is exposed in this session, so no `/impeccable layout` call 
 ## Gates
 tsc clean · biome clean · `/` 200 with 15 `data-status` rows · `/decisions` 200 with 7 `data-verdict="ignored"` rows · endpoints return pre-formatted rows with numeric confidence · no `process.env`/config/db in client files · no `dangerouslySetInnerHTML`, no `onClick`, no hex literals.
 
-Human-check still open: insert a Proposal row while the tab is open and confirm it appears within ~5 s.
+DSH-03 check: measured in 06-03 (row appeared in 3.9 s with the NEW marker).

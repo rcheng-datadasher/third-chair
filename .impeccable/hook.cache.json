@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "sessions": {
+    "344395e4-e017-4e5c-a865-414a51e121bf": {
+      "updatedAt": 1789193605402,
+      "files": {
+        "C:\\coding_proj\\hackathon\\third-chair\\.claude\\worktrees\\feature+dashboard-layout\\components\\nav.tsx": {
+          "editCount": 1,
+          "findings": [],
+          "stopBaseline": { "version": 1, "engine": "0.1.5", "counts": {} },
+          "cleanAcked": true
+        },
+        "C:\\coding_proj\\hackathon\\third-chair\\.claude\\worktrees\\feature+dashboard-layout\\app\\layout.tsx": {
+          "editCount": 1,
+          "findings": [],
+          "stopBaseline": { "version": 1, "engine": "0.1.5", "counts": {} },
+          "cleanAcked": true
+        },
+        "C:\\coding_proj\\hackathon\\third-chair\\.claude\\worktrees\\feature+dashboard-layout\\app\\globals.css": {
+          "editCount": 0,
+          "findings": []
+        },
+        "C:\\coding_proj\\hackathon\\third-chair\\.claude\\worktrees\\feature+dashboard-layout\\hooks\\use-new-rows.ts": {
+          "editCount": 1,
+          "findings": [],
+          "stopBaseline": { "version": 1, "engine": "0.1.5", "counts": {} }
+        },
+        "C:\\coding_proj\\hackathon\\third-chair\\.claude\\worktrees\\feature+dashboard-layout\\components\\feed-status.tsx": {
+          "editCount": 1,
+          "findings": [],
+          "stopBaseline": { "version": 1, "engine": "0.1.5", "counts": {} },
+          "cleanAcked": true
+        },
+        "C:\\coding_proj\\hackathon\\third-chair\\.claude\\worktrees\\feature+dashboard-layout\\components\\data-grid.tsx": {
+          "editCount": 1,
+          "findings": [],
+          "stopBaseline": { "version": 1, "engine": "0.1.5", "counts": {} },
+          "cleanAcked": true
+        },
+        "C:\\coding_proj\\hackathon\\third-chair\\.claude\\worktrees\\feature+dashboard-layout\\components\\proposal-queue.tsx": {
+          "editCount": 1,
+          "findings": [],
+          "stopBaseline": { "version": 1, "engine": "0.1.5", "counts": {} },
+          "cleanAcked": true
+        },
+        "C:\\coding_proj\\hackathon\\third-chair\\.claude\\worktrees\\feature+dashboard-layout\\components\\decision-log.tsx": {
+          "editCount": 1,
+          "findings": [],
+          "stopBaseline": { "version": 1, "engine": "0.1.5", "counts": {} },
+          "cleanAcked": true
+        }
+      }
+    }
+  }
+}

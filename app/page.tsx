@@ -1,10 +1,11 @@
 import { connection } from "next/server";
 import { ProposalQueue } from "@/components/proposal-queue";
+import { SceneHeader } from "@/components/scene-header";
 import { getProposalRows } from "@/lib/dashboard/queries";
 
 /**
- * Proposal queue view. Renders at request time so a production build never
- * prerenders frozen seed rows; the client component keeps polling afterwards.
+ * Proposal queue scene. Renders at request time so a production build never
+ * prerenders frozen seed rows; the client grid keeps polling afterwards.
  *
  * @returns The queue page.
  */
@@ -12,17 +13,14 @@ export default async function Home() {
   await connection();
   const rows = await getProposalRows();
   return (
-    <main className="mx-auto flex w-full max-w-[1440px] flex-col gap-6 px-8 pt-10 pb-16">
-      <header className="flex flex-col gap-1.5">
-        <h1 className="text-3xl font-semibold tracking-tight">
-          Proposal queue
-        </h1>
-        <p className="text-base text-muted-foreground">
-          Every meeting the agent has proposed from Slack, newest first.
-          Approval happens on the Slack card, not here.
-        </p>
-      </header>
-      <ProposalQueue initialData={rows} />
+    <main className="flex min-h-0 flex-1 flex-col">
+      <SceneHeader title="Proposal queue">
+        Every meeting the agent has proposed from Slack, newest first. Approval
+        happens on the Slack card, not here.
+      </SceneHeader>
+      <div className="flex min-h-0 flex-1 flex-col px-4 pt-4 pb-6 md:px-6">
+        <ProposalQueue initialData={rows} />
+      </div>
     </main>
   );
 }
