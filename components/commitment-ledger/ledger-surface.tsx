@@ -4,38 +4,33 @@ import { CopilotKit, useCopilotAction } from "@copilotkit/react-core";
 import { CopilotChat } from "@copilotkit/react-ui";
 import { useState } from "react";
 import "@copilotkit/react-ui/styles.css";
-import type { SeedCommitment } from "@/lib/commitment-ledger/seed-rows";
-import { seedCommitments } from "@/lib/commitment-ledger/seed-rows";
+import type { LedgerCommitment } from "@/lib/agent/commitment-schema";
+import type { CommitmentFilter } from "@/lib/commitment-ledger/list-commitments";
 import { CommitmentRow } from "./commitment-row";
 
-/** The arguments the model may pass to `queryCommitments`; both optional. */
-interface QueryCommitmentsArgs {
-  direction?: "owed_by_me" | "owed_to_me";
-  status?: "open" | "done" | "overdue" | "dropped";
-}
-
 /**
- * Filters the hand-seeded demo rows by the model's chosen arguments. An
- * absent argument matches everything. Pure, synchronous, no I/O.
+ * Fetches the persona's commitments from `/api/commitments`, which reads
+ * the `Commitment` rows the agent extracted from Slack. An absent filter
+ * field matches everything.
  *
- * @param rows - The full seeded commitment set.
  * @param args - The model-supplied filter, both fields optional.
  * @returns The rows matching every supplied filter.
+ * @throws When the route responds with a non-2xx status.
  */
-function filterCommitments(
-  rows: SeedCommitment[],
-  args: QueryCommitmentsArgs,
-): SeedCommitment[] {
-  return rows.filter(
-    (row) =>
-      (args.direction == null || row.direction === args.direction) &&
-      (args.status == null || row.status === args.status),
-  );
+async function fetchCommitments(
+  args: CommitmentFilter,
+): Promise<LedgerCommitment[]> {
+  const params = new URLSearchParams();
+  if (args.direction) params.set("direction", args.direction);
+  if (args.status) params.set("status", args.status);
+  const res = await fetch(`/api/commitments?${params}`);
+  if (!res.ok) throw new Error(`commitments fetch failed: ${res.status}`);
+  return res.json();
 }
 
 /**
  * Registers the single `queryCommitments` frontend action and its render
- * prop. Must be mounted inside `<CopilotKit>` — `useCopilotAction` reads
+ * prop. The handler reads live `Commitment` rows over `/api/commitments`. Must be mounted inside `<CopilotKit>` — `useCopilotAction` reads
  * that provider's context. The model chooses *which* commitments answer
  * the user's question (closed `direction`/`status` enum arguments, no
  * free-text parameter, per D-11); `selectCommitmentComponent` deterministically
@@ -64,8 +59,7 @@ function QueryCommitmentsAction() {
         description: "Filter to commitments in this status.",
       },
     ],
-    handler: async (args: QueryCommitmentsArgs) =>
-      filterCommitments(seedCommitments, args),
+    handler: fetchCommitments,
     // CopilotKit's own `status` describes the tool call's progress
     // ("inProgress" | "executing" | "complete"), which collides by name
     // with a commitment row's own `status` — renamed to `callStatus` so
@@ -74,7 +68,7 @@ function QueryCommitmentsAction() {
       if (callStatus !== "complete" || result == null) {
         return <p>Looking up commitments…</p>;
       }
-      const rows = result as SeedCommitment[];
+      const rows = result as LedgerCommitment[];
       return (
         <div className="flex flex-col gap-2">
           {rows.map((row) => (

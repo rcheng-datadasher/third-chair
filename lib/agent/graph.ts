@@ -13,8 +13,10 @@ import { listHumanChannelMembers } from "../slack/list-human-channel-members";
 import { postConflictCard } from "../slack/post-conflict-card";
 import { postEditApproveCard } from "../slack/post-edit-approve-card";
 import { postProposalCard } from "../slack/post-proposal-card";
+import type { CommitmentIntent } from "./commitment-schema";
 import { collectBusyBlocks, summarizeClash } from "./conflict";
 import { computeDedupeKey, normalizeIntent } from "./dedupe";
+import { extractCommitments } from "./extract-commitments";
 import {
   type ExtractedIntent,
   ExtractedIntentSchema,
@@ -114,6 +116,11 @@ export const AgentState = Annotation.Root({
     reducer: (_, next) => next,
     default: () => [],
   }),
+  /** Ids of `Commitment` rows `extractCommitmentsNode` upserted on this run (Phase 8, S2). */
+  commitmentIds: Annotation<string[]>({
+    reducer: (_, next) => next,
+    default: () => [],
+  }),
   /** True when `proposeNode` recovered an existing Proposal via a P2002 dedupe collision, rather than creating a new one. */
   replayed: Annotation<boolean>({
     reducer: (_, next) => next,
@@ -197,6 +204,69 @@ export async function learnPreferencesNode(
       .filter((_, i) => accepted[i])
       .map((f) => f.key),
   };
+}
+
+/**
+ * Extracts commitments (promises) from the message and persists each as a
+ * `Commitment` row (Phase 8, S2), fanned out from `START` beside
+ * `extractNode` so a promise and a scheduling request in the same message
+ * are both honoured. Upserts on `(source_channel, source_ts)` so a Slack
+ * redelivery rewrites the same row instead of duplicating it. A blank
+ * message skips the model call; a failed model call is logged and writes
+ * nothing, never blocking the meeting path.
+ *
+ * @param state - Current graph state.
+ * @returns A partial state update listing the upserted row ids.
+ */
+export async function extractCommitmentsNode(
+  state: typeof AgentState.State,
+): Promise<Partial<typeof AgentState.State>> {
+  if (state.message.text.trim() === "") {
+    return { commitmentIds: [] };
+  }
+  // ponytail: extracts on the trigger message alone, no channel context
+  // (`extractNode` keeps its context local). Share it via state if "I'll
+  // do it" replies need the parent to resolve `what`/`who`.
+  let commitments: CommitmentIntent[] = [];
+  try {
+    commitments = await extractCommitments([state.message], { now: state.now });
+  } catch (err) {
+    console.warn(
+      `[extractCommitmentsNode] extraction failed channel=${state.message.channelId} ts=${state.message.ts}: ${err}; no commitment rows written`,
+    );
+  }
+  const ids: string[] = [];
+  for (const c of commitments) {
+    const data = {
+      team_id: state.message.teamId,
+      author_slack_user_id: state.message.userId,
+      direction: c.direction,
+      what: c.what,
+      who: c.who,
+      when_promised: c.when_promised_iso ? new Date(c.when_promised_iso) : null,
+      due: c.due_iso ? new Date(c.due_iso) : null,
+      status: c.status,
+      confidence: c.confidence,
+      is_actionable: c.is_actionable,
+      reason: c.reason,
+    };
+    const row = await prisma.commitment.upsert({
+      where: {
+        source_channel_source_ts: {
+          source_channel: state.message.channelId,
+          source_ts: state.message.ts,
+        },
+      },
+      create: {
+        ...data,
+        source_channel: state.message.channelId,
+        source_ts: state.message.ts,
+      },
+      update: data,
+    });
+    ids.push(row.id);
+  }
+  return { commitmentIds: ids };
 }
 
 /**
@@ -609,7 +679,8 @@ async function buildParticipantRows(
 
 /**
  * The compiled confidence-gate graph (D-01): the five original nodes plus
- * `learnPreferences` fanned out from `START` (Phase 9, S1). Six `addNode` calls,
+ * `learnPreferences` (Phase 9, S1) and `extractCommitments` (Phase 8, S2)
+ * fanned out from `START`. Seven `addNode` calls,
  * `extract -> classify` unconditionally, a conditional edge from `classify`
  * to `END` on an ignored band (score <= 6) or onward to `resolveTime ->
  * checkConflicts -> propose -> END` on high/medium (score >= 7). Compiled
@@ -622,9 +693,12 @@ export const agentGraph = new StateGraph(AgentState)
   .addNode("checkConflicts", checkConflictsNode)
   .addNode("propose", proposeNode)
   .addNode("learnPreferences", learnPreferencesNode)
+  .addNode("extractCommitments", extractCommitmentsNode)
   .addEdge(START, "extract")
   .addEdge(START, "learnPreferences")
+  .addEdge(START, "extractCommitments")
   .addEdge("learnPreferences", END)
+  .addEdge("extractCommitments", END)
   .addEdge("extract", "classify")
   .addConditionalEdges("classify", (s) =>
     s.band === "ignored" ? END : "resolveTime",

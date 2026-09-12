@@ -1,4 +1,5 @@
 import type { SlackMessage } from "../../types/slack";
+import { hktDateParts } from "../../utils/time";
 import { complete } from "../ai/provider";
 import {
   CommitmentExtractionSchema,
@@ -14,13 +15,18 @@ import {
 /**
  * Builds the commitment-extraction system prompt. Asks only for promises
  * with an owner, an action and a time — who owes what to whom, when it was
- * promised, when it is due. Never asks for an opinion about a person
- * (this plan's prohibition).
+ * promised, when it is due. States today's HKT date first so "by Wednesday"
+ * resolves relative to now rather than to the model's training era. Never
+ * asks for an opinion about a person (this plan's prohibition).
  *
+ * @param now - The instant the run started, used only to state today's HKT date.
  * @returns The full system prompt string.
  */
-function buildCommitmentSystemPrompt(): string {
-  return `You extract commitments (promises) from Slack messages: who owes what to whom, when it was promised, and when it is due.
+function buildCommitmentSystemPrompt(now: Date): string {
+  const { isoDate, weekday, time } = hktDateParts(now);
+  return `Today is ${weekday}, ${isoDate}, ${time} in Asia/Hong_Kong.
+
+You extract commitments (promises) from Slack messages: who owes what to whom, when it was promised, and when it is due.
 
 Rules:
 - Produce one commitment object only for messages that state or imply a promise to DO or DELIVER something (e.g. "I'll send the deck by Friday", "can you review the PR today?", "I'll look into it after lunch").
@@ -29,7 +35,7 @@ Rules:
 - direction is "owed_by_me" when the message author is promising something, "owed_to_me" when the author is asking someone else for something owed to the author.
 - what is the promised action, in a short phrase. who is the person the promise is between (not the author's own name unless direction is owed_to_me and the promise is on someone else's plate).
 - when_promised_iso is left null unless a specific date/time is stated in the message itself; do not guess one.
-- due_iso is left null when no due date is stated — never guess one.
+- due_iso is left null when no due date is stated — never guess one. When one is stated, resolve relative terms ("Wednesday", "tomorrow", "end of week") against today's date above and write a full ISO 8601 timestamp with the +08:00 offset; if no clock time is given use 18:00.
 - status is "open" unless the message itself states the promise is done, overdue, or dropped.
 - reason is left null unless there is a specific factual note about the promise itself. Never comment on anyone's mood, tone or character, and never rate or judge a person.
 - source_link is always null; it is filled in later by code, not by you.
@@ -44,15 +50,14 @@ Rules:
  * to `[]` with no model call.
  *
  * @param messages - The Slack messages to extract from, in order.
- * @param ctx - Extraction context (currently just `now`, unused by the
- *   commitment prompt but kept for signature parity with `extractIntents`).
+ * @param ctx - Extraction context; `now` anchors relative due dates.
  * @returns One `CommitmentIntent` per message the model returned a
  *   commitment for, with `source_link` resolved from that message's real
  *   channel and `ts`. Out-of-range `message_index` values are dropped.
  */
 export async function extractCommitments(
   messages: SlackMessage[],
-  _ctx: ExtractContext,
+  ctx: ExtractContext,
 ): Promise<CommitmentIntent[]> {
   if (messages.length === 0) {
     return [];
@@ -60,7 +65,7 @@ export async function extractCommitments(
 
   const { commitments } = await complete({
     tier: "fast",
-    system: buildCommitmentSystemPrompt(),
+    system: buildCommitmentSystemPrompt(ctx.now),
     prompt: renderNumberedLines(messages),
     schema: CommitmentExtractionSchema,
     schemaName: "commitment_extraction_result",

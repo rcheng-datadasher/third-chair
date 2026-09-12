@@ -1,6 +1,6 @@
 "use client";
 
-import type { SeedCommitment } from "@/lib/commitment-ledger/seed-rows";
+import type { LedgerCommitment } from "@/lib/agent/commitment-schema";
 import { getStatusLabel } from "@/lib/commitment-ledger/status-label";
 import { formatHkt } from "@/utils/time";
 
@@ -12,7 +12,7 @@ import { formatHkt } from "@/utils/time";
  * @param row - The overdue commitment owed by the user.
  * @returns A short follow-up sentence.
  */
-function draftFollowUp(row: SeedCommitment): string {
+function draftFollowUp(row: LedgerCommitment): string {
   const promisedPart =
     row.when_promised_iso != null
       ? `, promised ${formatHkt(row.when_promised_iso)}`
@@ -29,7 +29,7 @@ function draftFollowUp(row: SeedCommitment): string {
  * @param props.row - The overdue commitment owed by the user.
  * @returns A bordered card presenting the overdue promise and next action.
  */
-export function DraftNudge({ row }: { row: SeedCommitment }) {
+export function DraftNudge({ row }: { row: LedgerCommitment }) {
   const status = getStatusLabel(row.status);
   return (
     <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-3 text-card-foreground">

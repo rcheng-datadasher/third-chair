@@ -131,3 +131,37 @@ model Preference {
 
   @@unique([user_id, key])
 }
+
+enum CommitmentDirection {
+  owed_by_me
+  owed_to_me
+}
+
+enum CommitmentStatus {
+  open
+  done
+  overdue
+  dropped
+}
+
+/// A promise extracted from one Slack message: who owes what to whom, and by when.
+/// `direction` is relative to the message author (`author_slack_user_id`).
+model Commitment {
+  id                   String              @id @default(cuid())
+  team_id              String
+  author_slack_user_id String
+  direction            CommitmentDirection
+  what                 String
+  who                  String
+  when_promised        DateTime?
+  due                  DateTime?
+  status               CommitmentStatus    @default(open)
+  confidence           Float
+  is_actionable        Boolean
+  reason               String?
+  source_channel       String
+  source_ts            String
+  created_at           DateTime            @default(now())
+
+  @@unique([source_channel, source_ts])
+}

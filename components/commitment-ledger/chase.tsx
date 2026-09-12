@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
-import type { SeedCommitment } from "@/lib/commitment-ledger/seed-rows";
+import type { LedgerCommitment } from "@/lib/agent/commitment-schema";
 import { getStatusLabel } from "@/lib/commitment-ledger/status-label";
 import { formatHkt } from "@/utils/time";
 
@@ -16,7 +16,7 @@ import { formatHkt } from "@/utils/time";
  * @param row - The commitment owed to the user.
  * @returns A plain-text message the user could paste verbatim into Slack.
  */
-function draftChaseMessage(row: SeedCommitment): string {
+function draftChaseMessage(row: LedgerCommitment): string {
   const promisedPart =
     row.when_promised_iso != null
       ? ` (promised ${formatHkt(row.when_promised_iso)})`
@@ -58,7 +58,7 @@ async function postNudge(
  * @param props.row - The commitment owed to the user.
  * @returns A bordered card presenting the chase.
  */
-export function Chase({ row }: { row: SeedCommitment }) {
+export function Chase({ row }: { row: LedgerCommitment }) {
   const status = getStatusLabel(row.status);
   const nudge = useMutation({
     mutationFn: () => postNudge(row.id),

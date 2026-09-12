@@ -38,3 +38,16 @@ export type CommitmentIntent = z.infer<typeof CommitmentIntentSchema>;
 export const CommitmentExtractionSchema = z.object({
   commitments: z.array(CommitmentIntentSchema),
 });
+
+/**
+ * A persisted commitment as the ledger UI and the nudge route see it: the
+ * extracted intent plus the `Commitment` row's stable `id`. `status` here is
+ * the *effective* status — `lib/commitment-ledger/list-commitments.ts`
+ * derives `overdue` from an open row whose `due` has passed.
+ */
+export const LedgerCommitmentSchema = CommitmentIntentSchema.extend({
+  id: z.string().min(1),
+});
+
+/** The Zod-inferred shape of one commitment row served to the ledger. */
+export type LedgerCommitment = z.infer<typeof LedgerCommitmentSchema>;

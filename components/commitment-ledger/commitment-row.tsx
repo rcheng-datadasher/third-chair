@@ -1,6 +1,6 @@
 "use client";
 
-import type { SeedCommitment } from "@/lib/commitment-ledger/seed-rows";
+import type { LedgerCommitment } from "@/lib/agent/commitment-schema";
 import { selectCommitmentComponent } from "@/lib/commitment-ledger/select-component";
 import { Chase } from "./chase";
 import { ClarifyCard } from "./clarify-card";
@@ -21,7 +21,7 @@ import { DraftNudge } from "./draft-nudge";
  * @throws Only if a future kind is added to `CommitmentComponentKind`
  *   without a matching arm here.
  */
-export function CommitmentRow({ row }: { row: SeedCommitment }) {
+export function CommitmentRow({ row }: { row: LedgerCommitment }) {
   const kind = selectCommitmentComponent(row);
   switch (kind) {
     case "chase":

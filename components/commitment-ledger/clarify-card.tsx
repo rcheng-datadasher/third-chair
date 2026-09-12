@@ -1,4 +1,4 @@
-import type { SeedCommitment } from "@/lib/commitment-ledger/seed-rows";
+import type { LedgerCommitment } from "@/lib/agent/commitment-schema";
 
 /**
  * The ambiguous row: no due date, done, or dropped. Structurally different
@@ -11,7 +11,7 @@ import type { SeedCommitment } from "@/lib/commitment-ledger/seed-rows";
  * @param props.row - The ambiguous commitment.
  * @returns A card leading with a clarifying question.
  */
-export function ClarifyCard({ row }: { row: SeedCommitment }) {
+export function ClarifyCard({ row }: { row: LedgerCommitment }) {
   return (
     <div className="flex flex-col gap-2 rounded-md border border-dashed border-border bg-card p-3 text-card-foreground">
       <p className="text-sm font-medium">

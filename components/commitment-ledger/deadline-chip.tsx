@@ -1,6 +1,6 @@
 "use client";
 
-import type { SeedCommitment } from "@/lib/commitment-ledger/seed-rows";
+import type { LedgerCommitment } from "@/lib/agent/commitment-schema";
 import { getStatusLabel } from "@/lib/commitment-ledger/status-label";
 import { formatHkt } from "@/utils/time";
 
@@ -16,7 +16,7 @@ import { formatHkt } from "@/utils/time";
  * @returns An inline chip showing the due date, the promise, and a disabled
  *   `Block time` affordance.
  */
-export function DeadlineChip({ row }: { row: SeedCommitment }) {
+export function DeadlineChip({ row }: { row: LedgerCommitment }) {
   const status = getStatusLabel(row.status);
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs">
