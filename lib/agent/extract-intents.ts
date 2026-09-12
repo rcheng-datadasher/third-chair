@@ -12,8 +12,8 @@ import { complete } from "../ai/provider";
  */
 export const CONFIDENCE_RUBRIC = `Score each candidate action item 0-10 as the SUM of four dimensions:
 • Intent (0-3): 3 = explicit request or commitment to schedule ("let's meet", "can we sync", "book a call"); 2 = strong implication ("we should talk about X this week"); 1 = vague or hypothetical ("maybe catch up sometime"); 0 = no scheduling intent (status update, joke, chit-chat).
-• Time (0-3): 3 = concrete or resolvable date/time ("next Friday 11am", "tomorrow 3pm"); 2 = day known but time missing ("on Thursday"); 1 = only a window ("next week", "this month"); 0 = none.
-• Participants (0-2): 2 = people named or mentioned, or clearly "you and me"; 1 = implied group (the channel/team); 0 = unclear who.
+• Time (0-3): 3 = BOTH a specific day AND a clock time are given or resolvable ("next Friday 11am", "tomorrow 3pm") - never award 3 without an explicit time of day; 2 = a specific day is known but no clock time ("on Thursday", "tomorrow", "next Friday"); 1 = only a window ("next week", "this month", "sometime soon"); 0 = none.
+• Participants (0-2): 2 = specific people are named or @mentioned in the message or in the recent channel context, or the message clearly says "you and me"; 1 = nobody is named - the audience is the whole channel/team (a bare "let's meet" or "can we sync" with no names is 1, never 2); 0 = unclear who.
 • Fitness (0-2): 2 = creating a calendar event with these people is the right action and the message is current; 1 = partial (e.g. only asking availability); 0 = the action would be wrong (already scheduled, past or cancelled, sarcasm, quoting someone else).
 Report the four point values, the total score, and a one-sentence reason citing each dimension.`;
 
