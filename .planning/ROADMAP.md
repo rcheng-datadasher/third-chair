@@ -290,13 +290,17 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
   4. `ps aux | grep -i bolt` (or open terminals) shows exactly one Bolt process across every worktree
 
 **Plans**: 2 (suggested)
+
+- [x] 02-01-PLAN.md
+- [x] 02-02-PLAN.md
+
 **Wave 1**
 
-- [ ] 02-01: Bolt runtime smoke test + watched-channel filter + shortcut/mention/slash wiring + ack-first pattern
+- [x] 02-01: Bolt runtime smoke test + watched-channel filter + shortcut/mention/slash wiring + ack-first pattern
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 02-02: Real approval card (Block Kit) + chat.update status chip + users.info email resolution
+- [x] 02-02: Real approval card (Block Kit) + chat.update status chip + users.info email resolution
 
 ### Phase 3: Calendar Client
 
@@ -359,13 +363,17 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
   5. `git status` after the first `trigger dev` run shows no untracked `package-lock.json`
 
 **Plans**: 2 (suggested)
+
+- [ ] 04-01-PLAN.md
+- [x] 04-02-PLAN.md
+
 **Wave 1**
 
 - [ ] 04-01: (R1 already merged to main) approve/reject handler + organizer claim + chat.update; Trigger.dev task imports the REAL Phase 5 graph
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 04-02: Trigger.dev task wrapper (AGT-11) + prismaExtension + AGENT_TRANSPORT flag verified both ways
+- [x] 04-02: Trigger.dev task wrapper (AGT-11) + prismaExtension + AGENT_TRANSPORT flag verified both ways
 
 ### Phase 5: Agent + Confidence Gate
 
@@ -569,9 +577,13 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
   4. `/impeccable audit` has run on the live dashboard with its output reviewed
 
 **Plans**: 2 (suggested)
+
+- [x] 10-01-PLAN.md
+- [ ] 10-02-PLAN.md
+
 **Wave 1**
 
-- [ ] 10-01: `prisma/reset-demo.ts` (DB truncation + tagged calendar-event cleanup)
+- [x] 10-01: `prisma/reset-demo.ts` (DB truncation + tagged calendar-event cleanup)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -604,8 +616,11 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
 
 **Plans**: 2 (suggested)
 
+- [ ] 11-01-PLAN.md
+- [x] 11-02-PLAN.md
+
 - [ ] 11-01: Screen-record one clean run
-- [ ] 11-02: Finalize README (competitive section, batch-first, OAuth, interrupt() note, ponytail-debt, abandoned stretch)
+- [x] 11-02: Finalize README (competitive section, batch-first, OAuth, interrupt() note, ponytail-debt, abandoned stretch)
 
 ## Progress
 
@@ -614,16 +629,16 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation + Hardcoded Round Trip | 1/3 | In Progress|  |
-| 2. Slack Surface | 0/2 | Not started | - |
+| 2. Slack Surface | 2/2 | In Progress|  |
 | 3. Calendar Client | 0/2 | Not started | - |
-| 4. Approval Bridge | 0/2 | Not started | - |
+| 4. Approval Bridge | 1/2 | In Progress|  |
 | 5. Agent + Confidence Gate | 0/3 | Not started | - |
 | 6. Dashboard | 0/3 | Not started | - |
 | 7. Integrate + Conflict Counter-Proposal | 0/3 | Not started | - |
 | 8. [optional] S2 Commitment Ledger | 0/2 | Not started (gated) | - |
 | 9. [optional] S1 Graphiti | 0/2 | Not started (gated) | - |
-| 10. Seed-and-Rehearse | 0/2 | Not started | - |
-| 11. Freeze-and-Record | 0/2 | Not started | - |
+| 10. Seed-and-Rehearse | 1/2 | In Progress|  |
+| 11. Freeze-and-Record | 1/2 | In Progress|  |
 
 ---
 *Roadmap created: 2026-09-11*

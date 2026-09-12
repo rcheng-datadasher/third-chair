@@ -23,13 +23,13 @@ Every requirement's check is a hand check that takes under a minute. No requirem
 ### Slack surface (SLK)
 
 - [ ] **SLK-01**: The Bolt process runs in Socket Mode as its own process (`bun lib/slack/bolt.ts`) and holds a stable connection for at least a minute
-- [ ] **SLK-02**: Messages in channels listed in `SLACK_WATCH_CHANNEL_IDS` reach the agent unprompted; messages from other channels, bot messages and edit/delete subtypes are dropped on the handler's first line
-- [ ] **SLK-03**: The "Extract action items" message shortcut, `app_mention` and `/secretary` each reach the handler (a log line confirms)
-- [ ] **SLK-04**: Every listener acks within 3 seconds and hands slow work off, so no duplicate cards appear from Slack retries
-- [ ] **SLK-05**: An approval card (Block Kit) shows the proposal's title, HKT time, duration, participants and confidence, with **Approve** and **Reject** buttons whose `value` carries the proposal id
-- [ ] **SLK-06**: On Approve or Reject, the same message updates in place via `chat.update` using the channel + ts stored on the Proposal; the buttons are replaced by a status chip (confirmed / dismissed)
+- [x] **SLK-02**: Messages in channels listed in `SLACK_WATCH_CHANNEL_IDS` reach the agent unprompted; messages from other channels, bot messages and edit/delete subtypes are dropped on the handler's first line
+- [x] **SLK-03**: The "Extract action items" message shortcut, `app_mention` and `/secretary` each reach the handler (a log line confirms)
+- [x] **SLK-04**: Every listener acks within 3 seconds and hands slow work off, so no duplicate cards appear from Slack retries
+- [x] **SLK-05**: An approval card (Block Kit) shows the proposal's title, HKT time, duration, participants and confidence, with **Approve** and **Reject** buttons whose `value` carries the proposal id
+- [x] **SLK-06**: On Approve or Reject, the same message updates in place via `chat.update` using the channel + ts stored on the Proposal; the buttons are replaced by a status chip (confirmed / dismissed)
 - [ ] **SLK-07**: The trigger → hardcoded card → button → `chat.update` round trip works end to end before any LLM or calendar code exists
-- [ ] **SLK-08**: A participant's email is resolved from their Slack profile via `users.info`
+- [x] **SLK-08**: A participant's email is resolved from their Slack profile via `users.info`
 
 ### Calendar (CAL)
 
@@ -59,7 +59,7 @@ Every requirement's check is a hand check that takes under a minute. No requirem
 - [ ] **AGT-08**: The extraction prompt carries a confidence rubric so sample messages visibly spread across high / medium / low
 - [ ] **AGT-09**: One Proposal per intent: `dedupe_key = sha256(team_id + channel_id + (thread_ts ?? message_ts) + normalized_intent)` (type + ISO start in 5-minute buckets + sorted participants); per-user `ActionItem` rows reference it
 - [ ] **AGT-10**: The agent is one LangGraph graph of at most five nodes (extract → classify → resolve time → check conflicts → propose), compiled with no checkpointer and invoked to completion per message. If the graph is still fighting back at the fixed decision time, it is replaced by the same node functions called in sequence
-- [ ] **AGT-11**: A Trigger.dev task (Node runtime) wraps `runAgent()` with an idempotency key from team + channel + ts, and posts the card with a plain `WebClient`
+- [x] **AGT-11**: A Trigger.dev task (Node runtime) wraps `runAgent()` with an idempotency key from team + channel + ts, and posts the card with a plain `WebClient`
 
 ### Conflict counter-proposal (CFL)
 
@@ -84,7 +84,7 @@ Every requirement's check is a hand check that takes under a minute. No requirem
 - [ ] **DMO-01**: `prisma/reset-demo.ts` clears demo DB rows and deletes tagged calendar events, so a repeated seeded message produces a fresh card
 - [ ] **DMO-02**: The demo conversation is seeded in the watched channel by hand, and the full flow (ignored chatter → Friday 11:00 proposal → approve → B's 10:30 ask → conflict alternatives) runs three times on `main`
 - [ ] **DMO-03**: One clean run is screen-recorded as the wifi fallback
-- [ ] **DMO-04**: The final README covers every required section: the competitive comparison (Slackbot, Reclaim/Motion, Clockwise noted as shut down, Slack calendar apps, Fireflies/Otter/Spinach, n8n/Zapier, Relay.app noted as winding down); batch-first detection with the ~20× cost reasoning and why regex pre-filtering fails; multi-workspace via OAuth; the one-line `interrupt()` note; known shortcuts from `/ponytail-debt`; abandoned stretch work and why
+- [x] **DMO-04**: The final README covers every required section: the competitive comparison (Slackbot, Reclaim/Motion, Clockwise noted as shut down, Slack calendar apps, Fireflies/Otter/Spinach, n8n/Zapier, Relay.app noted as winding down); batch-first detection with the ~20× cost reasoning and why regex pre-filtering fails; multi-workspace via OAuth; the one-line `interrupt()` note; known shortcuts from `/ponytail-debt`; abandoned stretch work and why
 - [ ] **DMO-05**: Each merge window ends with `/ponytail-review` on the diff before the track merges into `develop`
 
 ### Optional core (OPT): build only if the core demo is done
@@ -155,12 +155,12 @@ Deferred. Tracked, not in the roadmap.
 | FND-10 | Phase 1 | Complete |
 | SLK-01 | Phase 1 | Pending |
 | SLK-07 | Phase 1 | Pending |
-| SLK-02 | Phase 2 | Pending |
-| SLK-03 | Phase 2 | Pending |
-| SLK-04 | Phase 2 | Pending |
-| SLK-05 | Phase 2 | Pending |
-| SLK-06 | Phase 2 | Pending |
-| SLK-08 | Phase 2 | Pending |
+| SLK-02 | Phase 2 | Complete |
+| SLK-03 | Phase 2 | Complete |
+| SLK-04 | Phase 2 | Complete |
+| SLK-05 | Phase 2 | Complete |
+| SLK-06 | Phase 2 | Complete |
+| SLK-08 | Phase 2 | Complete |
 | CAL-01 | Phase 3 | Pending |
 | CAL-02 | Phase 3 | Pending |
 | CAL-03 | Phase 3 | Pending |
@@ -171,7 +171,7 @@ Deferred. Tracked, not in the roadmap.
 | APR-03 | Phase 4 | Pending |
 | APR-04 | Phase 4 | Pending |
 | APR-05 | Phase 4 | Pending |
-| AGT-11 | Phase 4 | Pending |
+| AGT-11 | Phase 4 | Complete |
 | AGT-01 | Phase 5 | Pending |
 | AGT-02 | Phase 5 | Pending |
 | AGT-03 | Phase 5 | Pending |
@@ -204,7 +204,7 @@ Deferred. Tracked, not in the roadmap.
 | DMO-01 | Phase 10 | Pending |
 | DMO-02 | Phase 10 | Pending |
 | DMO-03 | Phase 11 | Pending |
-| DMO-04 | Phase 11 | Pending |
+| DMO-04 | Phase 11 | Complete |
 
 **Coverage:**
 
