@@ -13,12 +13,12 @@ Every requirement's check is a hand check that takes under a minute. No requirem
 - [x] **FND-02**: `README.md` skeleton exists with every required section heading (what it is, core functionality, how it differs, problems tackled, architecture, usage, scope/non-goals, production design notes)
 - [x] **FND-03**: Next.js App Router + TypeScript + shadcn/ui + Tailwind v4 (PostCSS, CSS-first, no `tailwind.config.js`) + Biome run with bun; `bun run dev` serves a page and `bunx biome check` passes
 - [x] **FND-04**: Dependencies are pinned exactly per research/STACK.md (Prisma 7.10.0 + adapter-pg; LangGraph, Trigger.dev and googleapis pins); `bun.lock` committed and `package-lock.json` gitignored
-- [ ] **FND-05**: `docker compose up` starts `postgres` (16-alpine, named volume, healthcheck, memory limit); `neo4j` (512m heap / 256m page cache) and `graph-service` start only under `--profile graph`; every credential and URL comes from env
-- [ ] **FND-06**: One typed config module is the only reader of `process.env`; `.env.local.example` and `.env.cloud.example` list every key
-- [ ] **FND-07**: Pointing `DATABASE_URL`/`DIRECT_URL` at hosted Postgres, or `NEO4J_URI` at Aura, works with an env edit and restart only: no code change, no conditional
-- [ ] **FND-08**: Prisma schema has `User` (`@@unique([team_id, slack_user_id])`), `Installation`, `Proposal` (unique `dedupe_key`), `Participant`, `ActionItem` (with `expires_at`), `Decision`, `Preference`; `bunx prisma db push` succeeds and one real query runs from a shared `globalThis` Prisma client singleton
+- [x] **FND-05**: `docker compose up` starts `postgres` (16-alpine, named volume, healthcheck, memory limit); `neo4j` (512m heap / 256m page cache) and `graph-service` start only under `--profile graph`; every credential and URL comes from env
+- [x] **FND-06**: One typed config module is the only reader of `process.env`; `.env.local.example` and `.env.cloud.example` list every key
+- [x] **FND-07**: Pointing `DATABASE_URL`/`DIRECT_URL` at hosted Postgres, or `NEO4J_URI` at Aura, works with an env edit and restart only: no code change, no conditional
+- [x] **FND-08**: Prisma schema has `User` (`@@unique([team_id, slack_user_id])`), `Installation`, `Proposal` (unique `dedupe_key`), `Participant`, `ActionItem` (with `expires_at`), `Decision`, `Preference`; `bunx prisma db push` succeeds and one real query runs from a shared `globalThis` Prisma client singleton
 - [ ] **FND-09**: Stub modules with fixed signatures and hardcoded bodies exist on `main` for every cross-track interface (shared `types/`, `lib/agent` `runAgent`/`extractIntents(messages[], ctx)`, `lib/slack` card builders/posters, `lib/calendar` freebusy/createEvent, `lib/ai/provider.ts`), so parallel tracks merge mechanically
-- [ ] **FND-10**: Seed data maps A's Slack user to A's Google refresh token and HKT timezone (hand-seeded; no account-linking UI)
+- [x] **FND-10**: Seed data maps A's Slack user to A's Google refresh token and HKT timezone (hand-seeded; no account-linking UI)
 
 ### Slack surface (SLK)
 
@@ -147,12 +147,12 @@ Deferred. Tracked, not in the roadmap.
 | FND-02 | Phase 1 | Complete |
 | FND-03 | Phase 1 | Complete |
 | FND-04 | Phase 1 | Complete |
-| FND-05 | Phase 1 | Pending |
-| FND-06 | Phase 1 | Pending |
-| FND-07 | Phase 1 | Pending |
-| FND-08 | Phase 1 | Pending |
+| FND-05 | Phase 1 | Complete |
+| FND-06 | Phase 1 | Complete |
+| FND-07 | Phase 1 | Complete |
+| FND-08 | Phase 1 | Complete |
 | FND-09 | Phase 1 | Pending |
-| FND-10 | Phase 1 | Pending |
+| FND-10 | Phase 1 | Complete |
 | SLK-01 | Phase 1 | Pending |
 | SLK-07 | Phase 1 | Pending |
 | SLK-02 | Phase 2 | Pending |

@@ -249,12 +249,12 @@ Stretch is abandoned, never finished late — nothing merges to `main` unless de
 **Plans**: 3 (suggested)
 
 - [x] 01-01-PLAN.md
-- [ ] 01-02-PLAN.md
+- [x] 01-02-PLAN.md
 - [ ] 01-03-PLAN.md
 
 **Wave 1**
 
-- [ ] 01-01: CLAUDE.md + README skeleton + Next.js/shadcn/Tailwind/Biome scaffold under bun, pinned deps
+- [x] 01-01: CLAUDE.md + README skeleton + Next.js/shadcn/Tailwind/Biome scaffold under bun, pinned deps
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
