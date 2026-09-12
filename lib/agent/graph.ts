@@ -1,4 +1,5 @@
 import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
+import { Prisma } from "../../prisma/generated/client";
 import type {
   ConflictSlot,
   RunAgentInput,
@@ -10,6 +11,7 @@ import { prisma } from "../db";
 import { postProposalCard } from "../slack/post-proposal-card";
 import { computeDedupeKey, normalizeIntent } from "./dedupe";
 import {
+  type ExtractedIntent,
   ExtractedIntentSchema,
   extractIntents,
   type LocatedIntent,
@@ -79,6 +81,11 @@ export const AgentState = Annotation.Root({
     reducer: (_, next) => next,
     default: () => null,
   }),
+  /** True when `proposeNode` recovered an existing Proposal via a P2002 dedupe collision, rather than creating a new one. */
+  replayed: Annotation<boolean>({
+    reducer: (_, next) => next,
+    default: () => false,
+  }),
 });
 
 /**
@@ -86,12 +93,20 @@ export const AgentState = Annotation.Root({
  * intent whose resolved Slack `ts` matches it (extraction is batch-shaped;
  * a single-message run should still guard against a mismatched index).
  *
+ * A whitespace-only message short-circuits without calling the model
+ * (edge AGT-10/empty) — there's nothing for the model to extract from, and
+ * skipping the call keeps a Trigger.dev retry storm of empty events cheap.
+ *
  * @param state - Current graph state.
- * @returns A partial state update setting `intent`.
+ * @returns A partial state update setting `intent` (and `reason` for the
+ *   empty-text case, so `classifyNode` doesn't need to invent one).
  */
 export async function extractNode(
   state: typeof AgentState.State,
 ): Promise<Partial<typeof AgentState.State>> {
+  if (state.message.text.trim() === "") {
+    return { intent: null, reason: "empty message text; model not called" };
+  }
   const located = await extractIntents([state.message], { now: state.now });
   const intent = located.find((i) => i.ts === state.message.ts) ?? null;
   return { intent };
@@ -198,7 +213,80 @@ export async function proposeNode(
     participantIds,
   );
 
-  const proposal = await prisma.proposal.create({
+  let proposal: Awaited<ReturnType<typeof createProposal>>;
+  let replayed = false;
+  try {
+    proposal = await createProposal(
+      message,
+      dedupeKey,
+      validated,
+      start,
+      end,
+      participantRows,
+    );
+  } catch (err) {
+    // A redelivered message (Slack retry, Trigger.dev retry) reproduces the
+    // same dedupe_key and hits the Proposal.dedupe_key unique constraint
+    // (AGT-09) — reuse the existing row instead of throwing. Every other
+    // error propagates unchanged; retrying a non-P2002 failure would just
+    // reproduce it (05-RESEARCH "Don't Hand-Roll").
+    if (
+      !(err instanceof Prisma.PrismaClientKnownRequestError) ||
+      err.code !== "P2002"
+    ) {
+      throw err;
+    }
+    replayed = true;
+    proposal = await prisma.proposal.findUniqueOrThrow({
+      where: { dedupe_key: dedupeKey },
+      include: { participants: true },
+    });
+  }
+
+  // ponytail: this read-then-post is not race-safe against two concurrent
+  // redeliveries of the same message both observing card_ts=null and both
+  // posting a card. Accepted for the demo's single-watched-channel volume;
+  // upgrade path is a DB-level advisory lock or a conditional update.
+  if (proposal.card_ts == null) {
+    const { channel, ts } = await postProposalCard(proposal);
+    proposal = await prisma.proposal.update({
+      where: { id: proposal.id },
+      data: { card_channel: channel, card_ts: ts },
+      include: { participants: true },
+    });
+  }
+
+  if (!replayed) {
+    await createActionItems(proposal);
+  }
+
+  return { proposalId: proposal.id, replayed };
+}
+
+/**
+ * Inserts one Proposal row plus its nested Participant rows.
+ *
+ * Pulled out of `proposeNode` so the P2002-recovery `catch` above can call
+ * it exactly once and know precisely which call the retry constraint
+ * applies to.
+ *
+ * @param message - The triggering Slack message.
+ * @param dedupeKey - The proposal's dedupe key (D-20).
+ * @param validated - The schema-validated, `start_iso`-filled intent.
+ * @param start - Resolved meeting start.
+ * @param end - Resolved meeting end.
+ * @param participantRows - Nested-create input rows for `Participant`.
+ * @returns The created Proposal, with its `participants` included.
+ */
+async function createProposal(
+  message: SlackMessage,
+  dedupeKey: string,
+  validated: ExtractedIntent,
+  start: Date,
+  end: Date,
+  participantRows: Awaited<ReturnType<typeof buildParticipantRows>>,
+) {
+  return prisma.proposal.create({
     data: {
       team_id: message.teamId,
       dedupe_key: dedupeKey,
@@ -216,15 +304,36 @@ export async function proposeNode(
     },
     include: { participants: true },
   });
+}
 
-  const { channel, ts } = await postProposalCard(proposal);
-
-  await prisma.proposal.update({
-    where: { id: proposal.id },
-    data: { card_channel: channel, card_ts: ts },
+/**
+ * Creates one `ActionItem` per participant who has a `User` row in the same
+ * team (D-20) — a participant with no `User` row keeps only their
+ * `Participant` row. Runs once per newly created Proposal, never on a
+ * replayed (P2002-recovered) run.
+ *
+ * @param proposal - The newly created Proposal, with `participants` included.
+ */
+async function createActionItems(
+  proposal: Prisma.ProposalGetPayload<{ include: { participants: true } }>,
+): Promise<void> {
+  const userIds = proposal.participants
+    .map((p) => p.user_id)
+    .filter((id): id is string => id != null);
+  if (userIds.length === 0) {
+    return;
+  }
+  await prisma.actionItem.createMany({
+    data: userIds.map((userId) => ({
+      proposal_id: proposal.id,
+      user_id: userId,
+      kind: "meeting",
+      state: "pending",
+      slack_channel: proposal.card_channel ?? proposal.source_channel,
+      slack_ts: proposal.card_ts ?? proposal.source_ts,
+      expires_at: proposal.start,
+    })),
   });
-
-  return { proposalId: proposal.id };
 }
 
 /**
@@ -320,15 +429,50 @@ export const agentGraph = new StateGraph(AgentState)
  * Decision. A thrown run writes no Decision; a Trigger.dev retry writes it
  * on the retried attempt.
  *
+ * Redelivery-safe (AGT-09, D-18): a pre-check on `team_id`/`source_channel`/
+ * `source_ts` returns a finished run's ids with no model call and no graph
+ * invocation at all. A run that got as far as `proposeNode` but crashed
+ * before this function's own `decision.create` (P2002-recovered on the
+ * retried attempt) looks up and returns the existing Decision instead of
+ * writing a second one; `decision.create` stays the single write site.
+ *
+ * ponytail: two deliveries landing within the same instant can both pass
+ * the pre-check read and both fall through to write an ignored Decision.
+ * Accepted for the demo's single-watched-channel volume; upgrade path is a
+ * unique `(team_id, source_channel, source_ts)` constraint on Decision.
+ *
  * @param input - Wraps the one Slack message to process.
- * @returns The new Proposal id (`null` for low band / non-actionable) and
- *   the new Decision id.
+ * @returns The new (or replayed) Proposal id (`null` for low band /
+ *   non-actionable) and Decision id.
  */
 export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
   const { message } = input;
-  const now = new Date();
 
+  const existingDecision = await prisma.decision.findFirst({
+    where: {
+      team_id: message.teamId,
+      source_channel: message.channelId,
+      source_ts: message.ts,
+    },
+  });
+  if (existingDecision != null) {
+    return {
+      proposalId: existingDecision.proposal_id,
+      decisionId: existingDecision.id,
+    };
+  }
+
+  const now = new Date();
   const result = await agentGraph.invoke({ message, now });
+
+  if (result.replayed && result.proposalId != null) {
+    const priorDecision = await prisma.decision.findFirst({
+      where: { proposal_id: result.proposalId },
+    });
+    if (priorDecision != null) {
+      return { proposalId: result.proposalId, decisionId: priorDecision.id };
+    }
+  }
 
   const decision = await prisma.decision.create({
     data: {
