@@ -1,19 +1,118 @@
+import { randomUUID } from "node:crypto";
+import type { calendar_v3 } from "googleapis";
 import type { Proposal } from "../../prisma/generated/client";
+import { prisma } from "../db";
+import { deriveEventId } from "./event-id";
+import { getCalendarClient } from "./google-client";
+import { toHktRfc3339 } from "./hkt-rfc3339";
 
 /**
- * Creates a Google Calendar event for a confirmed Proposal.
+ * Reads the Meet URI from an inserted/fetched Calendar event, tolerating an
+ * empty value.
  *
- * Phase 1 stub: not implemented. Never returns a fabricated id — a fake
- * success here would look exactly like a real calendar write in a phase
- * whose whole point is that no calendar write happens.
+ * Conference data generation is asynchronous (Pitfall C), so the Meet URI
+ * may not be populated on the synchronous `events.insert` response. This
+ * reads whichever field is populated and returns an empty string rather
+ * than throwing — the human check in this plan's `<verify>` is the actual
+ * safety net for a missing link, not this function.
  *
- * @param proposal - The confirmed proposal to create an event for.
- * @throws Always, in Phase 1 — Phase 3 (CAL-02) implements this.
+ * @param event - The event resource from `events.insert` or `events.get`.
+ * @returns The Meet URI, or an empty string if not (yet) present.
+ */
+function extractMeetLink(event: calendar_v3.Schema$Event): string {
+  return (
+    event.conferenceData?.entryPoints?.find((e) => e.entryPointType === "video")
+      ?.uri ??
+    event.hangoutLink ??
+    ""
+  );
+}
+
+/**
+ * Creates a Google Calendar event for a confirmed Proposal, with a Meet
+ * link, participant invites and a demo cleanup tag.
+ *
+ * Uses a deterministic event id derived from the Proposal id
+ * ({@link deriveEventId}), so a repeat call for the same Proposal targets
+ * the same Calendar event id (idempotency groundwork; the 409 fallback
+ * itself lands in 03-02 Task 2). Reads Participant emails from Postgres
+ * (read-only, D-14) and never writes back to Postgres.
+ *
+ * @param proposal - The confirmed proposal to create an event for. Its
+ *   Prisma-generated type and this export's name are Phase 1's stub
+ *   contract; the signature is extended additively here.
+ * @param organizerUserId - The user to authenticate the Calendar write as.
+ *   Defaults to `proposal.organizer_user_id`, since Phase 4's Approve
+ *   handler calls this with one argument after already setting that column.
+ * @returns The created (or, once 03-02 Task 2 lands, reused) event's id,
+ *   Meet link and Calendar `htmlLink`.
+ * @throws `MissingOrganizerError` if neither `organizerUserId` nor
+ *   `proposal.organizer_user_id` resolves to a user id — before any Google
+ *   or database call (D-15: never a silent no-op).
  */
 export async function createCalendarEvent(
-  _proposal: Proposal,
-): Promise<{ eventId: string; meetLink: string }> {
-  throw new Error(
-    "createCalendarEvent: not implemented until Phase 3 (CAL-02)",
+  proposal: Proposal,
+  organizerUserId?: string,
+): Promise<{ eventId: string; meetLink: string; htmlLink: string }> {
+  const organizer = organizerUserId ?? proposal.organizer_user_id;
+  if (!organizer) {
+    const err = new Error(
+      `createCalendarEvent: proposal ${proposal.id} has no organizer; pass organizerUserId or set organizer_user_id`,
+    );
+    err.name = "MissingOrganizerError";
+    throw err;
+  }
+
+  const calendar = await getCalendarClient(organizer);
+  const eventId = deriveEventId(proposal.id);
+
+  const participants = await prisma.participant.findMany({
+    where: { proposal_id: proposal.id },
+    select: { email: true },
+  });
+  const attendeeEmails = [
+    ...new Set(
+      participants
+        .map((p) => p.email.trim().toLowerCase())
+        .filter((email) => email.length > 0),
+    ),
+  ].sort();
+  if (attendeeEmails.length === 0) {
+    console.log("[create-event] no attendees; no invite sent");
+  }
+  const attendees = attendeeEmails.map((email) => ({ email }));
+
+  const requestBody = {
+    id: eventId,
+    summary: proposal.title,
+    start: {
+      dateTime: toHktRfc3339(proposal.start),
+      timeZone: "Asia/Hong_Kong",
+    },
+    end: { dateTime: toHktRfc3339(proposal.end), timeZone: "Asia/Hong_Kong" },
+    attendees,
+    conferenceData: {
+      createRequest: {
+        requestId: randomUUID(),
+        conferenceSolutionKey: { type: "hangoutsMeet" },
+      },
+    },
+    extendedProperties: { private: { demo: "true" } },
+  };
+
+  const res = await calendar.events.insert({
+    calendarId: "primary",
+    conferenceDataVersion: 1,
+    sendUpdates: "all",
+    requestBody,
+  });
+  const meetLink = extractMeetLink(res.data);
+  console.log(
+    `[create-event] inserted id=${res.data.id ?? eventId} conferenceStatus=${res.data.conferenceData?.createRequest?.status?.statusCode} meetLink=${meetLink}`,
   );
+  return {
+    eventId: res.data.id ?? eventId,
+    meetLink,
+    htmlLink: res.data.htmlLink ?? "",
+  };
 }

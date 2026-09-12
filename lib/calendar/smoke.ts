@@ -3,10 +3,15 @@
  *
  * Not exported/imported elsewhere. Run directly with `bun lib/calendar/smoke.ts`
  * (bun auto-loads the root `.env`). Checks A's token scope first, then
- * exercises the real `checkConflicts` (D-01, CAL-01).
+ * exercises the real `checkConflicts` (D-01, CAL-01) and `createCalendarEvent`
+ * against the seeded Proposal (CAL-02..05). Side effect: the first run for a
+ * given Proposal id creates a real event and emails its participants; every
+ * later run resolves through the 409 fallback.
  */
 
 import { prisma } from "../db";
+import { createCalendarEvent } from "./create-event";
+import { deriveEventId } from "./event-id";
 import { checkConflicts } from "./freebusy";
 import { getGoogleAuth } from "./google-client";
 import { toHktRfc3339 } from "./hkt-rfc3339";
@@ -68,6 +73,22 @@ async function main() {
     "2026-09-18T00:00:00+08:00",
   );
   console.log(`[smoke] freebusy ok slots=${slots.length}`);
+
+  // The seeded Proposal — Phase 2's round trip creates other pending
+  // Proposals in the same Postgres, so select by its unique dedupe_key.
+  const proposal = await prisma.proposal.findUniqueOrThrow({
+    where: { dedupe_key: "phase1-seed-proposal" },
+  });
+
+  const expectedEventId = deriveEventId(proposal.id);
+  const created = await createCalendarEvent(proposal, a.id);
+  console.log(
+    `[smoke] eventId=${created.eventId} expected=${expectedEventId} htmlLink=${created.htmlLink} meetLink=${created.meetLink}`,
+  );
+  if (created.eventId !== expectedEventId) {
+    console.log("[smoke] eventId mismatch");
+    process.exitCode = 1;
+  }
 }
 
 main()
