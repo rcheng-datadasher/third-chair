@@ -4,42 +4,42 @@ import { CopilotKit, useCopilotAction } from "@copilotkit/react-core";
 import { CopilotChat } from "@copilotkit/react-ui";
 import { useState } from "react";
 import "@copilotkit/react-ui/styles.css";
+import type { SeedCommitment } from "@/lib/commitment-ledger/seed-rows";
+import { seedCommitments } from "@/lib/commitment-ledger/seed-rows";
+import { selectCommitmentComponent } from "@/lib/commitment-ledger/select-component";
 
-/** One commitment-shaped row as returned by the `queryCommitments` handler. */
-interface StubCommitmentRow {
-  what: string;
-  who: string;
-  direction: "owed_by_me" | "owed_to_me";
-  status: "open" | "done" | "overdue" | "dropped";
+/** The arguments the model may pass to `queryCommitments`; both optional. */
+interface QueryCommitmentsArgs {
+  direction?: "owed_by_me" | "owed_to_me";
+  status?: "open" | "done" | "overdue" | "dropped";
 }
 
 /**
- * Fixed two-row stub result for Task 1's round-trip tracer only. Task 3
- * replaces this with the real seeded rows filtered by the model's chosen
- * arguments (`lib/commitment-ledger/seed-rows.ts`).
+ * Filters the hand-seeded demo rows by the model's chosen arguments. An
+ * absent argument matches everything. Pure, synchronous, no I/O.
+ *
+ * @param rows - The full seeded commitment set.
+ * @param args - The model-supplied filter, both fields optional.
+ * @returns The rows matching every supplied filter.
  */
-const STUB_ROWS: StubCommitmentRow[] = [
-  {
-    what: "send the deck",
-    who: "Alex",
-    direction: "owed_by_me",
-    status: "open",
-  },
-  {
-    what: "review the PR",
-    who: "Sam",
-    direction: "owed_to_me",
-    status: "overdue",
-  },
-];
+function filterCommitments(
+  rows: SeedCommitment[],
+  args: QueryCommitmentsArgs,
+): SeedCommitment[] {
+  return rows.filter(
+    (row) =>
+      (args.direction == null || row.direction === args.direction) &&
+      (args.status == null || row.status === args.status),
+  );
+}
 
 /**
  * Registers the single `queryCommitments` frontend action and its render
  * prop. Must be mounted inside `<CopilotKit>` — `useCopilotAction` reads
  * that provider's context. The model chooses *which* commitments answer
  * the user's question (closed `direction`/`status` enum arguments, no
- * free-text parameter, per D-11); which component renders each row is a
- * separate, deterministic concern Task 3 wires in.
+ * free-text parameter, per D-11); `selectCommitmentComponent` deterministically
+ * picks which component kind renders each returned row — never the model.
  *
  * @returns `null` — this component only registers a hook side effect.
  */
@@ -64,7 +64,8 @@ function QueryCommitmentsAction() {
         description: "Filter to commitments in this status.",
       },
     ],
-    handler: async () => STUB_ROWS,
+    handler: async (args: QueryCommitmentsArgs) =>
+      filterCommitments(seedCommitments, args),
     // CopilotKit's own `status` describes the tool call's progress
     // ("inProgress" | "executing" | "complete"), which collides by name
     // with a commitment row's own `status` — renamed to `callStatus` so
@@ -73,12 +74,12 @@ function QueryCommitmentsAction() {
       if (callStatus !== "complete" || result == null) {
         return <p>Looking up commitments…</p>;
       }
-      const rows = result as StubCommitmentRow[];
+      const rows = result as SeedCommitment[];
       return (
         <ul className="list-none space-y-1 p-0">
           {rows.map((row) => (
-            <li key={`${row.who}-${row.what}`} className="text-sm">
-              {row.what} — {row.who}
+            <li key={row.id} className="text-sm">
+              {row.what} — {row.who} ({selectCommitmentComponent(row)})
             </li>
           ))}
         </ul>
